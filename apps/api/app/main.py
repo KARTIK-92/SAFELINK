@@ -46,6 +46,8 @@ class SecurityHeadersMiddleware:
                 headers.append((b"x-xss-protection", b"1; mode=block"))
                 headers.append((b"referrer-policy", b"strict-origin-when-cross-origin"))
                 headers.append((b"strict-transport-security", b"max-age=31536000; includeSubDomains"))
+                headers.append((b"content-security-policy", b"default-src 'self'; frame-ancestors 'none';"))
+                headers.append((b"permissions-policy", b"geolocation=(self), camera=(self), microphone=()"))
                 message["headers"] = headers
             await send(message)
 

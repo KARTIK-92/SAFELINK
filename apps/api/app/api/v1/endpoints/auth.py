@@ -197,6 +197,12 @@ async def login(
     if not user:
         raise generic_auth_err
 
+    if not user.is_active or user.status == AccountStatus.SUSPENDED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account has been suspended or deactivated. Contact support for assistance."
+        )
+
     # Check lockout
     now = datetime.now(timezone.utc)
     if user.locked_until and user.locked_until > now:
