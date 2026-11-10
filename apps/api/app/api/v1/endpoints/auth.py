@@ -17,7 +17,8 @@ from app.schemas.auth import (
     RegisterRequest, RegisterResponse,
     OTPSendRequest, OTPSendResponse,
     OTPVerifyRequest, OTPVerifyResponse,
-    LoginRequest, TokenResponse, RefreshTokenRequest
+    LoginRequest, TokenResponse, RefreshTokenRequest,
+    PasswordResetRequest, PasswordResetConfirmRequest
 )
 from app.services.otp_service import otp_service
 from app.services.notification_provider import get_notification_provider
@@ -387,3 +388,130 @@ async def logout_all(
         s.is_revoked = True
     await db.commit()
     return {"message": "All active sessions have been revoked."}
+
+
+@router.post("/password/reset-request")
+async def password_reset_request(
+    payload: PasswordResetRequest
+):
+    """Initiate password reset by dispatching a 6-digit OTP to the registered mobile or email."""
+    can_send, cooldown = otp_service.can_send(payload.destination, "password_reset")
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown} seconds before requesting a new code."
+        )
+
+    otp_code, _ = otp_service.generate_and_store(payload.destination, "password_reset")
+    notifier = get_notification_provider()
+    msg = f"[{settings.BRAND_NAME}] Your password reset code is {otp_code}. Valid for 5 minutes. Do not share this code."
+
+    if payload.channel == "phone":
+        await notifier.send_sms(payload.destination, msg)
+    else:
+        await notifier.send_email(payload.destination, f"{settings.BRAND_NAME} Password Reset", f"<p>{msg}</p>")
+
+    return {
+        "status": "success",
+        "message": "If this contact is registered, a password reset code has been sent.",
+        "demo_otp": otp_code if settings.DEBUG else None
+    }
+
+
+@router.post("/password/reset-confirm")
+async def password_reset_confirm(
+    payload: PasswordResetConfirmRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Verify OTP and update user's password with Argon2id hash. Revokes all active sessions."""
+    if len(payload.new_password) < settings.PASSWORD_MIN_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters."
+        )
+
+    is_valid, msg = otp_service.verify(payload.destination, payload.otp_code, "password_reset")
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+
+    result = await db.execute(
+        select(User).where(or_(User.phone == payload.destination, User.email == payload.destination))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found."
+        )
+
+    # Hash new password
+    user.hashed_password = hash_password(payload.new_password)
+
+    # Revoke all existing sessions for security
+    sessions_result = await db.execute(
+        select(UserSession).where(UserSession.user_id == user.id)
+    )
+    sessions = sessions_result.scalars().all()
+    for s in sessions:
+        s.is_revoked = True
+
+    # Send security notification
+    notifier = get_notification_provider()
+    security_alert = f"[{settings.BRAND_NAME}] Security Alert: Your password was recently reset. If this was not you, please contact support immediately."
+    await notifier.send_sms(user.phone, security_alert)
+    await notifier.send_email(user.email, f"{settings.BRAND_NAME} Password Changed", f"<p>{security_alert}</p>")
+
+    await db.commit()
+    return {"message": "Password has been successfully reset. Please log in with your new password."}
+
+
+@router.get("/sessions")
+async def get_active_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Retrieve all non-revoked sessions for current user."""
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(UserSession).where(
+            UserSession.user_id == current_user.id,
+            UserSession.is_revoked == False,
+            UserSession.expires_at > now
+        ).order_by(UserSession.created_at.desc())
+    )
+    sessions = result.scalars().all()
+    return [
+        {
+            "id": str(s.id),
+            "device_info": s.device_info or "Unknown Device",
+            "ip_address": s.ip_address or "Unknown IP",
+            "created_at": s.created_at,
+            "expires_at": s.expires_at
+        }
+        for s in sessions
+    ]
+
+
+@router.delete("/sessions/{session_id}")
+async def revoke_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Revoke a specific session by ID."""
+    result = await db.execute(
+        select(UserSession).where(
+            UserSession.id == session_id,
+            UserSession.user_id == current_user.id
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    session.is_revoked = True
+    await db.commit()
+    return {"message": "Session revoked."}
+

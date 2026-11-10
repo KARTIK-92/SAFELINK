@@ -84,5 +84,10 @@ class RefreshTokenRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     destination: str
-    otp_code: str
+    channel: str = "phone"
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    destination: str
+    otp_code: str = Field(..., min_length=6, max_length=6)
     new_password: str = Field(..., min_length=8)
