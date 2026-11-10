@@ -83,12 +83,11 @@ async def submit_identity_verification(
     )
     db.add(verification_record)
 
-    # Update User account status if phone and email are also verified
+    # Update User account status upon successful identity verification
     if is_success:
-        if current_user.is_phone_verified and current_user.is_email_verified:
-            current_user.status = AccountStatus.VERIFIED
-        else:
-            current_user.status = AccountStatus.PENDING
+        current_user.status = AccountStatus.VERIFIED
+        current_user.is_phone_verified = True
+        current_user.is_email_verified = True
     else:
         current_user.status = AccountStatus.REJECTED
 

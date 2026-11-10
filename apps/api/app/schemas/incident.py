@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field
+import uuid
+from typing import List, Optional, Union
+from pydantic import BaseModel, Field, ConfigDict
 from app.models.incident import IncidentStatus, VolunteerIncidentStatus
 
 
@@ -12,7 +13,9 @@ class SOSStartRequest(BaseModel):
 
 
 class SOSStartResponse(BaseModel):
-    incident_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+    incident_id: Union[str, uuid.UUID]
     status: IncidentStatus
     started_at: datetime
     tracking_token: str
@@ -23,7 +26,7 @@ class SOSStartResponse(BaseModel):
 
 
 class SOSLocationUpdateRequest(BaseModel):
-    incident_id: str
+    incident_id: Union[str, uuid.UUID]
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
     accuracy_meters: float = Field(default=10.0, ge=0.0)
@@ -31,12 +34,14 @@ class SOSLocationUpdateRequest(BaseModel):
 
 
 class SOSCancelRequest(BaseModel):
-    incident_id: str
+    incident_id: Union[str, uuid.UUID]
     reason: Optional[str] = "False alarm / Safe now"
 
 
 class SOSStatusResponse(BaseModel):
-    incident_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+    incident_id: Union[str, uuid.UUID]
     status: IncidentStatus
     started_at: datetime
     active_responders_count: int
@@ -47,15 +52,19 @@ class SOSStatusResponse(BaseModel):
 
 
 class ResponderPublicInfo(BaseModel):
-    responder_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+    responder_id: Union[str, uuid.UUID]
     status: VolunteerIncidentStatus
     responded_at: Optional[datetime] = None
     arrived_at: Optional[datetime] = None
 
 
 class LiveTrackingPublicResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     active: bool
-    incident_id: Optional[str] = None
+    incident_id: Optional[Union[str, uuid.UUID]] = None
     woman_name_initial: Optional[str] = None
     last_latitude: Optional[float] = None
     last_longitude: Optional[float] = None
