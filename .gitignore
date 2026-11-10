@@ -1,0 +1,73 @@
+# Git ignore for SafeLink Monorepo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependencies & Package Managers
+node_modules/
+.pnp
+.pnp.js
+packages/*/node_modules/
+apps/*/node_modules/
+package-lock.json.bak
+
+# Next.js Build
+.next/
+out/
+build/
+dist/
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+apps/api/.venv/
+.venv/
+env/
+venv/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Flutter & Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+apps/*/build/
+apps/*/.flutter-plugins
+apps/*/.flutter-plugins-dependencies
+apps/*/.metadata
+apps/*/ios/Flutter/.last_build_id
+apps/*/ios/Pods/
+apps/*/android/.gradle/
+apps/*/android/local.properties
+
+# IDEs & System
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & Databases
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.sqlite3
+*.db
+local_storage/
+minio_data/

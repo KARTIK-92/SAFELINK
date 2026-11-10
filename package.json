@@ -1,0 +1,29 @@
+{
+  "name": "safelink-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SafeLink Women's Safety & Rapid Emergency Response Platform",
+  "scripts": {
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:start": "npm --prefix apps/web run start",
+    "api:dev": "cd apps/api && uvicorn app.main:app --reload --port 8000",
+    "test:api": "cd apps/api && pytest",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "keywords": [
+    "safety",
+    "emergency-response",
+    "postgis",
+    "fastapi",
+    "nextjs",
+    "flutter"
+  ],
+  "author": "SafeLink Engineering",
+  "license": "UNLICENSED"
+}

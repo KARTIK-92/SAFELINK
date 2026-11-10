@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: safelink-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-safelink_db}
+      POSTGRES_USER: ${POSTGRES_USER:-safelink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safelink_secret}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init-postgis.sh:/docker-entrypoint-initdb.d/init-postgis.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-safelink} -d ${POSTGRES_DB:-safelink_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: safelink-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+    container_name: safelink-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: safelink-api
+    restart: unless-stopped
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://safelink:safelink_secret@postgis:5432/safelink_db
+      DATABASE_URL_SYNC: postgresql://safelink:safelink_secret@postgis:5432/safelink_db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: safelink-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_BRAND_NAME: SafeLink
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
