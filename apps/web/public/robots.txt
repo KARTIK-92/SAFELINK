@@ -1,0 +1,7 @@
+# SafeLink Robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /t/
+Sitemap: https://safelink.org/sitemap.xml
