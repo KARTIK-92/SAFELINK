@@ -36,7 +36,8 @@ export default function EphemeralTrackingPage() {
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const rawApi = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+  const apiBase = rawApi.endsWith("/api/v1") ? rawApi : `${rawApi}/api/v1`;
 
   const fetchTracking = useCallback(async () => {
     if (!token) return;
@@ -59,7 +60,7 @@ export default function EphemeralTrackingPage() {
         });
       }
     } catch {
-      // In dev offline fallback or mock
+      // Offline or network error fallback
       setData((prev) => prev || {
         active: false,
         message: "Connection failed. Please check your network.",

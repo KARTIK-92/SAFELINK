@@ -212,41 +212,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // Quick Demo Account Badge
-                InkWell(
-                  onTap: () {
-                    _phoneController.text = '+919888800001';
-                    _passwordController.text = 'WomanPassword123#';
-                    _submitLogin();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandTeal.withOpacity(0.08),
-                      border: Border.all(color: AppColors.brandTeal.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.flash_on, color: AppColors.brandTeal, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'One-Tap Demo: Priya Sharma (+919888800001)',
-                          style: TextStyle(
-                            color: AppColors.brandTeal,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 32),
                 const Text(
                   'Need an account? New registrations must complete identity & liveness verification on our official web portal.',

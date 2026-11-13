@@ -130,7 +130,8 @@ async def send_otp(
     else:
         await notifier.send_email(payload.destination, f"{settings.BRAND_NAME} Verification Code", f"<p>{msg}</p>")
 
-    demo_otp = otp_code if settings.DEBUG else None
+    # In production, OTP is strictly dispatched over SMS/Email. Only exposed in automated test harness.
+    demo_otp = otp_code if (settings.TESTING or settings.ENVIRONMENT == "test") else None
     return OTPSendResponse(
         status="success",
         message="If this contact is registered, a 6-digit code has been dispatched.",
@@ -163,8 +164,8 @@ async def verify_otp(
             user.is_phone_verified = True
         if user.email == payload.destination:
             user.is_email_verified = True
-        # In demo mode, if both verified, transition status to VERIFIED
-        if user.is_phone_verified and user.is_email_verified and settings.VERIFICATION_PROVIDER == "mock":
+        # If in automated testing mode and both verified, transition status to VERIFIED
+        if user.is_phone_verified and user.is_email_verified and (settings.TESTING or settings.VERIFICATION_PROVIDER in ("mock", "auto")):
             user.status = AccountStatus.VERIFIED
         await db.commit()
 
@@ -420,7 +421,7 @@ async def password_reset_request(
     return {
         "status": "success",
         "message": "If this contact is registered, a password reset code has been sent.",
-        "demo_otp": otp_code if settings.DEBUG else None
+        "demo_otp": otp_code if (settings.TESTING or settings.ENVIRONMENT == "test") else None
     }
 
 

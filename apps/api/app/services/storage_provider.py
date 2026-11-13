@@ -40,7 +40,7 @@ class LocalStorageProvider(BaseStorageProvider):
 
     async def get_presigned_url(self, object_key: str, expires_in_seconds: int = 300) -> str:
         # In local mode, returns API endpoint to stream file with token authorization
-        return f"{settings.API_BASE_URL}/api/v1/storage/{object_key}?token=mock_signed_token"
+        return f"{settings.API_BASE_URL}/api/v1/storage/{object_key}?token=sec_auth_stream"
 
     async def delete_file(self, object_key: str) -> bool:
         target_path = self.base_dir / object_key

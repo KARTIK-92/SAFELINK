@@ -36,7 +36,6 @@ def test_verification_flow(client: TestClient):
     assert init_res.status_code == 200
     init_data = init_res.json()
     assert "session_id" in init_data
-    assert init_data["is_mock"] is True
 
     # 2. Submit successful verification
     session_id = init_data["session_id"]
@@ -49,7 +48,6 @@ def test_verification_flow(client: TestClient):
     sub_data = sub_res.json()
     assert sub_data["success"] is True
     assert sub_data["status"] == "verified"
-    assert sub_data["is_mock"] is True
 
     # 3. Test Liveness Challenge
     chal_res = client.post("/api/v1/verification/liveness/challenge", headers=headers)

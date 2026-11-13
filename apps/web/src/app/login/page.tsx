@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ShieldCheck, Lock, Phone, Mail, KeyRound,
-  ArrowRight, AlertCircle, RefreshCw, Sparkles
+  ArrowRight, AlertCircle, RefreshCw
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -21,7 +21,6 @@ export default function LoginPage() {
   // OTP State
   const [otpSent, setOtpSent] = useState<boolean>(false);
   const [cooldown, setCooldown] = useState<number>(0);
-  const [demoOtp, setDemoOtp] = useState<string | null>(null);
 
   // Status State
   const [loading, setLoading] = useState<boolean>(false);
@@ -36,7 +35,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const isEmail = identifier.includes("@");
-      const res = await apiRequest<{ status: string; demo_otp?: string }>(
+      await apiRequest<{ status: string }>(
         "/auth/otp/send",
         {
           method: "POST",
@@ -49,7 +48,6 @@ export default function LoginPage() {
       );
       setOtpSent(true);
       setCooldown(60);
-      if (res.demo_otp) setDemoOtp(res.demo_otp);
     } catch (err: any) {
       setError(err.message || "Failed to dispatch login OTP.");
     } finally {
@@ -234,12 +232,10 @@ export default function LoginPage() {
                   </button>
                 ) : (
                   <>
-                    {demoOtp && (
-                      <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        <span>[DEMO CODE]: <strong>{demoOtp}</strong></span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs text-brand-teal border border-teal-200">
+                      <ShieldCheck className="h-4 w-4 shrink-0 text-brand-teal" />
+                      <span>A 6-digit verification code has been dispatched to your contact.</span>
+                    </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
                         Enter 6-Digit Code

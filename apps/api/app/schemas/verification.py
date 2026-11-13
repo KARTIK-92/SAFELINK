@@ -13,7 +13,7 @@ class VerificationInitiateRequest(BaseModel):
 class VerificationInitiateResponse(BaseModel):
     session_id: str
     provider: str
-    is_mock: bool
+    is_mock: bool = False
     instructions: str
     oauth_url: Optional[str] = None
 
@@ -21,13 +21,13 @@ class VerificationInitiateResponse(BaseModel):
 class VerificationSubmitRequest(BaseModel):
     session_id: str
     document_ref: Optional[str] = None
-    force_reject: Optional[bool] = False  # For testing rejection states in demo mode
+    force_reject: Optional[bool] = False  # For test suite verification
 
 
 class VerificationSubmitResponse(BaseModel):
     success: bool
     status: VerificationStatus
-    is_mock: bool
+    is_mock: bool = False
     provider_reference: Optional[str] = None
     rejection_reason: Optional[str] = None
     verified_at: Optional[datetime] = None
@@ -38,7 +38,7 @@ class LivenessChallengeResponse(BaseModel):
     session_id: str
     provider: str
     actions_required: List[str]
-    is_mock: bool
+    is_mock: bool = False
 
 
 class LivenessSubmitRequest(BaseModel):
@@ -51,8 +51,8 @@ class LivenessSubmitResponse(BaseModel):
     passed: bool
     confidence_score: int
     provider: str
-    is_mock: bool
-    warning: str
+    is_mock: bool = False
+    warning: Optional[str] = None
 
 
 class SessionInfoResponse(BaseModel):

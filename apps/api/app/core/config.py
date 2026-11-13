@@ -58,12 +58,37 @@ class Settings(BaseSettings):
     S3_REGION: str = "us-east-1"
     LOCAL_STORAGE_DIR: str = "./local_storage/kyc"
 
-    # Providers
-    VERIFICATION_PROVIDER: str = "mock"  # mock, digilocker, authorized_kyc
-    LIVENESS_PROVIDER: str = "mock"      # mock, mediapipe, authorized_vendor
-    SMS_PROVIDER: str = "mock"           # mock, msg91, twilio
-    WHATSAPP_PROVIDER: str = "mock"      # mock, meta_official, twilio
-    EMAIL_PROVIDER: str = "mock"         # mock, smtp, resend
+    # Providers Configuration
+    VERIFICATION_PROVIDER: str = "digilocker"  # digilocker, kyc_docs, mock
+    LIVENESS_PROVIDER: str = "biometric"       # biometric, mock
+    SMS_PROVIDER: str = "production"           # production (twilio/fast2sms/meta), mock
+    WHATSAPP_PROVIDER: str = "production"      # production, mock
+    EMAIL_PROVIDER: str = "production"         # production (resend/smtp), mock
+
+    # External APIs (100% Free Tiers Supported)
+    # Email: Resend Free Tier (3,000 emails/month free forever)
+    RESEND_API_KEY: Optional[str] = None
+    EMAIL_FROM: str = "SafeLink Alerts <onboarding@resend.dev>"
+
+    # Email: Alternative SMTP (e.g. Brevo 300/day free or Gmail App Password)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+
+    # SMS: Twilio / Fast2SMS
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+    FAST2SMS_API_KEY: Optional[str] = None
+
+    # Push Notifications: Firebase Cloud Messaging (FCM - 100% Free Forever)
+    FCM_SERVER_KEY: Optional[str] = None
+    FCM_SERVICE_ACCOUNT_JSON: Optional[str] = None
+
+    # Government ID: DigiLocker Sandbox API (Free official government gateway)
+    DIGILOCKER_CLIENT_ID: Optional[str] = None
+    DIGILOCKER_CLIENT_SECRET: Optional[str] = None
 
     # OTP Controls
     OTP_EXPIRY_MINUTES: int = 5

@@ -225,5 +225,28 @@ Generates 14 static pages and the `/t/[token]` dynamic ephemeral tracking route 
 
 ---
 
+## 🚀 100% Free Production Deployment (Zero Server Cost)
+
+SafeLink is engineered to run completely **free of cost** using generous, production-ready cloud free tiers:
+
+| Component | Free Tier Provider | Limits / Free Allowance | Setup Effort |
+| :--- | :--- | :--- | :--- |
+| **Web Portal** | [Vercel](https://vercel.com) | Unlimited traffic, automatic HTTPS, global Edge CDN | 1-Click GitHub Import |
+| **Backend API** | [Render](https://render.com) | Free Web Service (Docker / Python), automatic HTTPS | 1-Click GitHub Web Service |
+| **Database (PostGIS)** | [Supabase](https://supabase.com) | 500 MB PostgreSQL + native PostGIS extension pre-installed | 2-minute sign-up |
+| **Cache & Real-Time** | [Upstash](https://upstash.com) | 10,000 commands/day serverless Redis | Instant free database |
+| **Private KYC Storage** | [Supabase Storage](https://supabase.com) / [Cloudflare R2](https://cloudflare.com) | 10 GB free S3-compatible private object storage | Included in free tier |
+| **Push Notifications** | [Firebase Cloud Messaging](https://firebase.google.com) | 100% Free Forever for unlimited push notifications | Google account |
+| **Email Gateway** | [Resend](https://resend.com) | 3,000 free emails/month forever | Free API key |
+| **Direct App APKs** | Hosted directly in `apps/web/public/downloads/` | Available for direct download at `/download` | Zero extra cost |
+
+### Continuous Deployment (CI/CD) Workflow
+Whenever you push changes or new code to your GitHub repository:
+1. **GitHub Actions** runs the automated test suite (`pytest`) and Next.js production build check.
+2. **Vercel** automatically detects commits affecting `apps/web` and rebuilds/deploys the updated frontend within 45 seconds.
+3. **Render** automatically pulls the latest commit and redeploys the backend API container with zero downtime.
+
+---
+
 ## 📄 License
 This project is licensed under the Apache 2.0 License.

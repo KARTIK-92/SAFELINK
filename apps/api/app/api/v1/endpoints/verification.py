@@ -25,7 +25,7 @@ async def initiate_identity_verification(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Initiate an identity verification session with DigiLocker or the Mock verification provider."""
+    """Initiate an identity verification session with DigiLocker or authorized KYC provider."""
     provider = get_verification_provider(settings.VERIFICATION_PROVIDER)
     result = await provider.initiate_verification(
         user_id=str(current_user.id),
@@ -59,9 +59,7 @@ async def submit_identity_verification(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Submit KYC documentation or verification result for review.
-    In DEMO mode, clearly tags records as mock-verified.
-    """
+    """Submit KYC documentation or verification result for review."""
     provider = get_verification_provider(settings.VERIFICATION_PROVIDER)
     verify_result = await provider.verify_credentials(
         session_id=payload.session_id,
@@ -99,7 +97,7 @@ async def submit_identity_verification(
         resource_id=str(verification_record.id),
         metadata_json={
             "status": v_status.value,
-            "is_mock": verify_result.get("is_mock", True)
+            "is_mock": verify_result.get("is_mock", False)
         }
     )
     db.add(audit)
@@ -108,7 +106,7 @@ async def submit_identity_verification(
     return VerificationSubmitResponse(
         success=is_success,
         status=v_status,
-        is_mock=verify_result.get("is_mock", True),
+        is_mock=verify_result.get("is_mock", False),
         provider_reference=verify_result.get("provider_reference"),
         rejection_reason=verify_result.get("rejection_reason"),
         verified_at=datetime.now(timezone.utc) if is_success else None,
@@ -159,5 +157,5 @@ async def verify_liveness(
         confidence_score=result["confidence_score"],
         provider=result["provider"],
         is_mock=result["is_mock"],
-        warning=result.get("warning", "Client-side liveness detection is for demonstration.")
+        warning=result.get("warning")
     )

@@ -8,6 +8,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.core.config import settings
 settings.TESTING = True
+settings.DATABASE_URL = "sqlite+aiosqlite:///./test_safelink.db"
+settings.DATABASE_URL_SYNC = "sqlite:///./test_safelink.db"
+settings.VERIFICATION_PROVIDER = "mock"
 
 from app.core.database import Base, sync_engine
 from app.main import app

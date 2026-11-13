@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ShieldCheck, ArrowLeft, ArrowRight, Lock,
-  AlertCircle, CheckCircle2, RefreshCw, Sparkles
+  AlertCircle, CheckCircle2, RefreshCw
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -17,7 +17,6 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
 
   const [otpSent, setOtpSent] = useState<boolean>(false);
-  const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -34,7 +33,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const isEmail = destination.includes("@");
-      const res = await apiRequest<{ status: string; demo_otp?: string }>(
+      await apiRequest<{ status: string }>(
         "/auth/password/reset-request",
         {
           method: "POST",
@@ -45,7 +44,6 @@ export default function ForgotPasswordPage() {
         }
       );
       setOtpSent(true);
-      if (res.demo_otp) setDemoOtp(res.demo_otp);
     } catch (err: any) {
       setError(err.message || "Unable to send password reset code.");
     } finally {
@@ -162,12 +160,10 @@ export default function ForgotPasswordPage() {
             </form>
           ) : (
             <form onSubmit={handleConfirmReset} className="space-y-4">
-              {demoOtp && (
-                <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>[DEMO RESET CODE]: <strong>{demoOtp}</strong></span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs text-brand-teal border border-teal-200">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-brand-teal" />
+                <span>A 6-digit password reset code has been dispatched to your contact.</span>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">6-Digit Code</label>

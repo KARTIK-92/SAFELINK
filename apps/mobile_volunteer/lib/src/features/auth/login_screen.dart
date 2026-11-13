@@ -212,41 +212,6 @@ class _VolunteerLoginScreenState extends ConsumerState<VolunteerLoginScreen> {
                         ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // Quick Demo Account Badge
-                InkWell(
-                  onTap: () {
-                    _phoneController.text = '+919888800002';
-                    _passwordController.text = 'VolPassword123#';
-                    _submitLogin();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandTeal.withOpacity(0.08),
-                      border: Border.all(color: AppColors.brandTeal.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.flash_on, color: AppColors.brandTeal, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'One-Tap Demo: Rajesh Nair (+919888800002)',
-                          style: TextStyle(
-                            color: AppColors.brandTeal,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 32),
                 const Text(
                   'Community responders must undergo identity and address verification before receiving active emergency dispatches.',

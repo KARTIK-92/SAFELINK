@@ -62,6 +62,17 @@ apps/*/android/local.properties
 Thumbs.db
 desktop.ini
 
+# Secrets, Keys & Credentials
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+serviceAccountKey.json
+firebase-admin.json
+credentials.json
+client_secrets.json
+
 # Logs & Databases
 *.log
 npm-debug.log*

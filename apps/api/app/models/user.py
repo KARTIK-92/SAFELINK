@@ -86,7 +86,7 @@ class IdentityVerification(Base, TimestampMixin):
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    provider = Column(String(50), default="mock", nullable=False)  # mock, digilocker, authorized_kyc
+    provider = Column(String(50), default="digilocker", nullable=False)  # digilocker, kyc_docs, authorized_kyc
     status = Column(SQLEnum(VerificationStatus), default=VerificationStatus.PENDING, nullable=False)
     provider_reference = Column(String(255), nullable=True)
     verification_payload_hash = Column(String(64), nullable=True)  # SHA-256 hash of result
@@ -102,7 +102,7 @@ class LivenessVerification(Base, TimestampMixin):
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    provider = Column(String(50), default="mock", nullable=False)
+    provider = Column(String(50), default="biometric", nullable=False)
     passed = Column(Boolean, default=False, nullable=False)
     confidence_score = Column(Integer, default=0, nullable=False)  # 0 to 100
     session_data = Column(JSON, nullable=True)
