@@ -28,11 +28,19 @@ AsyncSessionLocal = async_sessionmaker(
 
 # Sync Engine for Alembic migrations & background workers if needed
 sync_connect_args = {}
-if "sqlite" in settings.DATABASE_URL_SYNC:
+sync_url = settings.DATABASE_URL_SYNC
+if "sqlite" in sync_url:
     sync_connect_args = {"check_same_thread": False}
+elif sync_url.startswith("postgresql://"):
+    # Ensure compatibility with psycopg2 or psycopg3
+    try:
+        import psycopg  # noqa: F401
+    except ImportError:
+        # Fallback to psycopg2 dialect if psycopg (v3) is not present
+        sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 sync_engine = create_engine(
-    settings.DATABASE_URL_SYNC,
+    sync_url,
     echo=False,
     future=True,
     connect_args=sync_connect_args
