@@ -74,6 +74,7 @@ function RegisterContent() {
   const [phoneOtpSent, setPhoneOtpSent] = useState<boolean>(false);
   const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
   const [phoneCooldown, setPhoneCooldown] = useState<number>(0);
+  const [phoneDemoOtp, setPhoneDemoOtp] = useState<string | null>(null);
 
   const [emailOtpSent, setEmailOtpSent] = useState<boolean>(false);
   const [emailVerified, setEmailVerified] = useState<boolean>(false);
@@ -141,7 +142,7 @@ function RegisterContent() {
     setLoading(true);
     setError(null);
     try {
-      await apiRequest<{ status: string }>(
+      const res = await apiRequest<{ status: string; demo_otp?: string }>(
         "/auth/otp/send",
         {
           method: "POST",
@@ -154,6 +155,10 @@ function RegisterContent() {
       );
       setPhoneOtpSent(true);
       setPhoneCooldown(60);
+      if (res.demo_otp) {
+        setPhoneDemoOtp(res.demo_otp);
+        updateField("phoneOtp", res.demo_otp);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to dispatch mobile OTP.");
     } finally {
@@ -624,23 +629,37 @@ function RegisterContent() {
                       </div>
 
                       {phoneOtpSent && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            maxLength={6}
-                            value={formData.phoneOtp}
-                            onChange={(e) => updateField("phoneOtp", e.target.value)}
-                            placeholder="6-digit code"
-                            className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-center font-mono tracking-widest focus:border-neutral-950 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleVerifyPhoneOtp}
-                            disabled={loading}
-                            className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800"
-                          >
-                            Verify
-                          </button>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={formData.phoneOtp}
+                              onChange={(e) => updateField("phoneOtp", e.target.value)}
+                              placeholder="6-digit code"
+                              className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-center font-mono tracking-widest focus:border-neutral-950 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleVerifyPhoneOtp}
+                              disabled={loading}
+                              className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800"
+                            >
+                              Verify
+                            </button>
+                          </div>
+                          {phoneDemoOtp && (
+                            <div className="rounded-lg bg-surface-100 border border-surface-200 px-3 py-2 text-[11px] text-surface-700 flex items-center justify-between">
+                              <span>SMS Gateway unconfigured. Test code: <strong className="font-mono text-surface-950">{phoneDemoOtp}</strong></span>
+                              <button
+                                type="button"
+                                onClick={() => updateField("phoneOtp", phoneDemoOtp)}
+                                className="font-semibold text-surface-900 underline hover:text-surface-950 ml-2"
+                              >
+                                Auto-fill
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

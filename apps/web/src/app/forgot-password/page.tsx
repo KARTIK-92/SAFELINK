@@ -15,6 +15,7 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
 
   const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -31,7 +32,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const isEmail = destination.includes("@");
-      await apiRequest<{ status: string }>(
+      const res = await apiRequest<{ status: string; demo_otp?: string }>(
         "/auth/password/reset-request",
         {
           method: "POST",
@@ -42,6 +43,10 @@ export default function ForgotPasswordPage() {
         }
       );
       setOtpSent(true);
+      if (res.demo_otp) {
+        setDemoOtp(res.demo_otp);
+        setOtpCode(res.demo_otp);
+      }
     } catch (err: any) {
       setError(err.message || "Unable to send password reset code.");
     } finally {
@@ -175,6 +180,18 @@ export default function ForgotPasswordPage() {
                   placeholder="123456"
                   className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-center font-mono tracking-widest text-sm focus:border-neutral-950 focus:outline-none transition-colors"
                 />
+                {demoOtp && (
+                  <div className="mt-2 rounded-lg bg-surface-100 border border-surface-200 px-3 py-2 text-[11px] text-surface-700 flex items-center justify-between">
+                    <span>SMS Gateway unconfigured. Test code: <strong className="font-mono text-surface-950">{demoOtp}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setOtpCode(demoOtp)}
+                      className="font-semibold text-surface-900 underline hover:text-surface-950 ml-2"
+                    >
+                      Auto-fill
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
