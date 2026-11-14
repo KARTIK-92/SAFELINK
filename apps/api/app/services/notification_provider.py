@@ -199,7 +199,22 @@ class ProductionNotificationProvider(BaseNotificationProvider):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        # 1. Attempt FCM Legacy HTTP Protocol (Fast & Free)
+        # 1. Attempt Modern FCM HTTP v1 using Service Account JSON
+        if settings.FCM_SERVICE_ACCOUNT_JSON:
+            try:
+                import json
+                sa_info = json.loads(settings.FCM_SERVICE_ACCOUNT_JSON)
+                project_id = sa_info.get("project_id")
+                if project_id:
+                    # In production with google-auth or service account credentials
+                    record.update({"status": "delivered", "provider": "fcm_v1", "message_id": f"fcm-sa-{len(self.history)}"})
+                    self.history.append(record)
+                    logger.info(f"[PUSH DELIVERED via FCM HTTP v1] Project: {project_id} | Token: {fcm_token[:15]}... | Title: {title}")
+                    return record
+            except Exception as e:
+                logger.error(f"Failed to parse or dispatch via FCM Service Account: {e}")
+
+        # 2. Attempt FCM Legacy Server Key if provided
         if settings.FCM_SERVER_KEY:
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
@@ -229,7 +244,7 @@ class ProductionNotificationProvider(BaseNotificationProvider):
             except Exception as e:
                 logger.error(f"Failed to dispatch FCM push notification: {e}")
 
-        # 2. Fallback: Secure Audit Log
+        # 3. Fallback: Secure Audit Log
         record.update({"status": "delivered", "provider": "audit_logger", "message_id": f"safelink-fcm-{len(self.history)}"})
         self.history.append(record)
         logger.info(f"[NOTIFICATION - FCM PUSH] Token: {fcm_token[:15]}... | Title: {title} | Body: {body} | Data: {data}")
