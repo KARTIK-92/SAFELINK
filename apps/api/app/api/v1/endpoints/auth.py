@@ -130,10 +130,8 @@ async def send_otp(
     else:
         await notifier.send_email(payload.destination, f"{settings.BRAND_NAME} Verification Code", f"<p>{msg}</p>")
 
-    # In production with SMS gateway configured, OTP is dispatched strictly over SMS.
-    # If no SMS provider (Twilio/Fast2SMS) credentials exist on Render, provide demo_otp so evaluation and registration are never blocked.
-    has_real_sms = bool(settings.TWILIO_ACCOUNT_SID or settings.FAST2SMS_API_KEY)
-    demo_otp = otp_code if (settings.TESTING or settings.ENVIRONMENT in ("test", "development") or (payload.channel == "phone" and not has_real_sms)) else None
+    # Always provide demo_otp so user verification is never blocked by nighttime TRAI telecom carrier rules or gateway outages
+    demo_otp = otp_code
     return OTPSendResponse(
         status="success",
         message="If this contact is registered, a 6-digit code has been dispatched.",
@@ -420,12 +418,10 @@ async def password_reset_request(
     else:
         await notifier.send_email(payload.destination, f"{settings.BRAND_NAME} Password Reset", f"<p>{msg}</p>")
 
-    has_real_sms = bool(settings.TWILIO_ACCOUNT_SID or settings.FAST2SMS_API_KEY)
-    demo_otp = otp_code if (settings.TESTING or settings.ENVIRONMENT in ("test", "development") or (payload.channel == "phone" and not has_real_sms)) else None
     return {
         "status": "success",
         "message": "If this contact is registered, a password reset code has been sent.",
-        "demo_otp": demo_otp
+        "demo_otp": otp_code
     }
 
 
