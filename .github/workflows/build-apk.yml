@@ -7,6 +7,7 @@ on:
       - 'apps/mobile_women/**'
       - 'apps/mobile_volunteer/**'
       - 'packages/shared_dart/**'
+      - 'scripts/build_mobile_apks.py'
       - '.github/workflows/build-apk.yml'
     branches:
       - main
@@ -38,59 +39,18 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Prepare shared_dart package
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Execute Automated Mobile APK Build Script
         run: |
-          cd packages/shared_dart
-          dart pub get
-
-      - name: Scaffold & Build Women SOS APK
-        run: |
-          cd apps/mobile_women
-          rm -rf android
-          flutter create --platforms=android .
-          
-          # Inject required permissions into AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.CALL_PHONE"/>' android/app/src/main/AndroidManifest.xml
-
-          # Ensure compatible SDK levels for plugins (geolocator, secure storage)
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' android/app/build.gradle* || true
-          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle* || true
-          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle* || true
-
-          flutter pub get
-          flutter build apk --debug
-          
-          mkdir -p ../../dist-apks
-          cp build/app/outputs/flutter-apk/app-debug.apk ../../dist-apks/safelink-women.apk
-          ls -lh ../../dist-apks/safelink-women.apk
-
-      - name: Scaffold & Build Volunteer Responder APK
-        run: |
-          cd apps/mobile_volunteer
-          rm -rf android
-          flutter create --platforms=android .
-          
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.CALL_PHONE"/>' android/app/src/main/AndroidManifest.xml
-
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' android/app/build.gradle* || true
-          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle* || true
-          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle* || true
-
-          flutter pub get
-          flutter build apk --debug
-
-          mkdir -p ../../dist-apks
-          cp build/app/outputs/flutter-apk/app-debug.apk ../../dist-apks/safelink-volunteer.apk
-          ls -lh ../../dist-apks/safelink-volunteer.apk
+          python3 scripts/build_mobile_apks.py
 
       - name: Deploy Compiled Real APKs to Web Downloads
         run: |
-          mkdir -p apps/web/public/downloads
-          cp dist-apks/safelink-women.apk apps/web/public/downloads/safelink-women.apk
-          cp dist-apks/safelink-volunteer.apk apps/web/public/downloads/safelink-volunteer.apk
-          
           ls -lh apps/web/public/downloads/
-          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps/web/public/downloads/*.apk
