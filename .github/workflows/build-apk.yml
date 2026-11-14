@@ -11,6 +11,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     name: Build Signed Android APKs
@@ -18,6 +21,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
 
       - name: Set up Java JDK 17
         uses: actions/setup-java@v4
@@ -39,22 +45,84 @@ jobs:
 
       - name: Scaffold & Build Women SOS APK
         run: |
+          mkdir -p /tmp/safelink_backup
+          if [ -f apps/mobile_women/android/app/src/main/AndroidManifest.xml ]; then
+            cp apps/mobile_women/android/app/src/main/AndroidManifest.xml /tmp/safelink_backup/AndroidManifest_women.xml
+          fi
+
           cd apps/mobile_women
-          # Scaffold standard Flutter Android build harness if not present
-          flutter create --platforms=android . || true
+          rm -rf android
+          flutter create --org com.safelink --project-name mobile_women --platforms=android .
+          
+          if [ -f /tmp/safelink_backup/AndroidManifest_women.xml ]; then
+            cp /tmp/safelink_backup/AndroidManifest_women.xml android/app/src/main/AndroidManifest.xml
+          fi
+
+          # Ensure compatible SDK levels for plugins (geolocator, secure storage)
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' android/app/build.gradle* || true
+          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle* || true
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle* || true
+
           flutter pub get
-          flutter build apk --release --split-per-abi=false || flutter build apk --debug
+          flutter build apk --release || flutter build apk --debug
+          
           mkdir -p ../../dist-apks
-          cp build/app/outputs/flutter-apk/*.apk ../../dist-apks/safelink-women.apk || true
+          APK_FILE=$(find build/app/outputs/flutter-apk -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" ../../dist-apks/safelink-women.apk
+            echo "Women SOS APK successfully built: $APK_FILE"
+            ls -lh ../../dist-apks/safelink-women.apk
+          else
+            echo "ERROR: Women APK not found!"
+            exit 1
+          fi
 
       - name: Scaffold & Build Volunteer Responder APK
         run: |
+          mkdir -p /tmp/safelink_backup
+          if [ -f apps/mobile_volunteer/android/app/src/main/AndroidManifest.xml ]; then
+            cp apps/mobile_volunteer/android/app/src/main/AndroidManifest.xml /tmp/safelink_backup/AndroidManifest_vol.xml
+          fi
+
           cd apps/mobile_volunteer
-          flutter create --platforms=android . || true
+          rm -rf android
+          flutter create --org com.safelink --project-name mobile_volunteer --platforms=android .
+          
+          if [ -f /tmp/safelink_backup/AndroidManifest_vol.xml ]; then
+            cp /tmp/safelink_backup/AndroidManifest_vol.xml android/app/src/main/AndroidManifest.xml
+          fi
+
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' android/app/build.gradle* || true
+          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle* || true
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle* || true
+
           flutter pub get
-          flutter build apk --release --split-per-abi=false || flutter build apk --debug
+          flutter build apk --release || flutter build apk --debug
+
           mkdir -p ../../dist-apks
-          cp build/app/outputs/flutter-apk/*.apk ../../dist-apks/safelink-volunteer.apk || true
+          APK_FILE=$(find build/app/outputs/flutter-apk -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" ../../dist-apks/safelink-volunteer.apk
+            echo "Volunteer Responder APK successfully built: $APK_FILE"
+            ls -lh ../../dist-apks/safelink-volunteer.apk
+          else
+            echo "ERROR: Volunteer APK not found!"
+            exit 1
+          fi
+
+      - name: Deploy Compiled Real APKs to Web Downloads
+        run: |
+          mkdir -p apps/web/public/downloads
+          cp dist-apks/safelink-women.apk apps/web/public/downloads/safelink-women.apk
+          cp dist-apks/safelink-volunteer.apk apps/web/public/downloads/safelink-volunteer.apk
+          
+          ls -lh apps/web/public/downloads/
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/web/public/downloads/*.apk
+          git commit -m "chore(release): deploy real compiled Android APKs to web downloads [skip ci]" || echo "No changes to commit"
+          git push origin main || echo "Git push skipped"
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4

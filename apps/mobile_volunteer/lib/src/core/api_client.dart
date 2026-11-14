@@ -14,11 +14,11 @@ class ApiClient {
   late final Dio dio;
 
   static String get defaultBaseUrl {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
     if (kIsWeb) return 'http://localhost:8000/api/v1';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api/v1';
-    }
-    return 'http://localhost:8000/api/v1';
+    // Use production deployed backend API on Render; falls back gracefully
+    return 'https://safelink-api.onrender.com/api/v1';
   }
 
   ApiClient({required StorageService storage, String? baseUrl})
