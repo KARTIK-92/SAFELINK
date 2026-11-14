@@ -6,8 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck, ArrowRight, ArrowLeft, CheckCircle2,
   AlertCircle, Camera, Lock, User, MapPin, Mail, Phone,
-  FileCheck, RefreshCw, KeyRound, Sparkles, Eye, EyeOff,
-  Building, Fingerprint, BadgeCheck, ShieldAlert
+  FileCheck, RefreshCw, KeyRound, Sparkles
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -35,12 +34,7 @@ interface RegisterFormData {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#070B14] flex items-center justify-center p-8 text-sm text-slate-400">
-        <RefreshCw className="h-5 w-5 animate-spin text-rose-500 mr-2" />
-        Initialising SafeLink Secure Registration...
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center p-8 text-sm text-muted">Loading SafeLink Registration...</div>}>
       <RegisterContent />
     </Suspense>
   );
@@ -54,7 +48,6 @@ function RegisterContent() {
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -87,9 +80,10 @@ function RegisterContent() {
   const [emailCooldown, setEmailCooldown] = useState<number>(0);
 
   // Identity & Liveness States
+  const [identitySessionId, setIdentitySessionId] = useState<string | null>(null);
   const [identityVerified, setIdentityVerified] = useState<boolean>(false);
   const [livenessPassed, setLivenessPassed] = useState<boolean>(false);
-  const [livenessAction] = useState<string>("Blink twice and turn your head slightly right");
+  const [livenessAction, setLivenessAction] = useState<string>("Blink twice into the camera");
 
   // Registration ID after step 5
   const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
@@ -129,7 +123,7 @@ function RegisterContent() {
     const birthYear = new Date(formData.dateOfBirth).getFullYear();
     const currentYear = new Date().getFullYear();
     if (currentYear - birthYear < 18) {
-      setError("SafeLink network membership requires minimum 18 years of age.");
+      setError("SafeLink requires members to be at least 18 years of age.");
       return;
     }
     if (!formData.addressLine1.trim() || !formData.city.trim() || !formData.state.trim() || !formData.pinCode.trim()) {
@@ -214,7 +208,7 @@ function RegisterContent() {
       setEmailOtpSent(true);
       setEmailCooldown(60);
     } catch (err: any) {
-      setError(err.message || "Failed to dispatch email verification OTP.");
+      setError(err.message || "Failed to dispatch email OTP.");
     } finally {
       setLoading(false);
     }
@@ -249,12 +243,13 @@ function RegisterContent() {
     setLoading(true);
     setError(null);
     try {
+      // Simulate ID check
       setTimeout(() => {
         setIdentityVerified(true);
         setLoading(false);
       }, 1200);
     } catch (err: any) {
-      setError(err.message || "DigiLocker verification failed.");
+      setError(err.message || "Verification check failed.");
       setLoading(false);
     }
   };
@@ -310,7 +305,7 @@ function RegisterContent() {
       );
 
       setRegisteredUserId(regRes.user_id);
-      setStep(6);
+      setStep(6); // Success
     } catch (err: any) {
       setError(err.message || "Registration failed. Please review your inputs.");
     } finally {
@@ -318,40 +313,20 @@ function RegisterContent() {
     }
   };
 
-  const stepsList = [
-    { num: 1, label: "Role", desc: "Select Protection" },
-    { num: 2, label: "Profile", desc: "Legal & Domicile" },
-    { num: 3, label: "Contacts", desc: "Dual Verification" },
-    { num: 4, label: "Vetting", desc: "ID & Biometrics" },
-    { num: 5, label: "Security", desc: "Argon2 Vault" },
-  ];
-
   return (
-    <div className="flex min-h-screen flex-col bg-[#070B14] text-slate-100 selection:bg-rose-500/30">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#090D1A]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-900/30 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="h-5 w-5" />
+      <header className="border-b border-border bg-white py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-navyDark text-white shadow-sm">
+              <ShieldCheck className="h-5 w-5 text-brand-tealLight" />
             </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5 font-heading">
-                SafeLink
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
-                  Onboarding
-                </span>
-              </span>
-              <p className="text-[11px] text-slate-400 font-medium">National Emergency Safety Network</p>
-            </div>
+            <span className="text-xl font-bold tracking-tight text-foreground">SafeLink</span>
           </Link>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 hidden sm:inline">Already registered?</span>
-            <Link
-              href="/login"
-              className="text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 px-3 py-1.5 rounded-lg transition-all"
-            >
+          <div className="text-xs text-muted">
+            Already verified?{" "}
+            <Link href="/login" className="font-semibold text-brand-teal hover:underline">
               Sign In
             </Link>
           </div>
@@ -359,148 +334,106 @@ function RegisterContent() {
       </header>
 
       {/* Main Wizard Container */}
-      <main className="mx-auto my-8 w-full max-w-3xl px-4 sm:px-6">
+      <main className="mx-auto my-8 w-full max-w-2xl px-6">
         {/* Progress Stepper */}
-        {step <= 5 && (
-          <div className="mb-8 rounded-2xl border border-white/5 bg-[#0D1322]/80 p-4 sm:p-5 backdrop-blur-xl shadow-xl">
-            <div className="grid grid-cols-5 gap-2 sm:gap-4">
-              {stepsList.map((s) => {
-                const isComplete = step > s.num;
-                const isCurrent = step === s.num;
-                return (
-                  <div key={s.num} className="flex flex-col items-center text-center">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition-all ${
-                        isComplete
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                          : isCurrent
-                          ? "bg-rose-500 text-white shadow-lg shadow-rose-900/50 ring-2 ring-rose-400/30"
-                          : "bg-white/5 text-slate-500 border border-white/5"
-                      }`}
-                    >
-                      {isComplete ? <CheckCircle2 className="h-4 w-4" /> : s.num}
-                    </div>
-                    <span className={`mt-2 text-[11px] font-semibold hidden sm:block ${isCurrent ? "text-white" : isComplete ? "text-emerald-400" : "text-slate-500"}`}>
-                      {s.label}
-                    </span>
-                    <span className="text-[9px] text-slate-500 hidden sm:block">
-                      {s.desc}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Progress line indicator */}
-            <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+        <div className="mb-8 flex items-center justify-between">
+          {[
+            { num: 1, label: "Account" },
+            { num: 2, label: "Identity" },
+            { num: 3, label: "Contacts" },
+            { num: 4, label: "Vetting" },
+            { num: 5, label: "Security" },
+          ].map((s) => (
+            <div key={s.num} className="flex items-center gap-2">
               <div
-                className="h-full bg-gradient-to-r from-rose-500 via-teal-400 to-emerald-400 transition-all duration-300"
-                style={{ width: `${((step - 1) / 4) * 100}%` }}
-              />
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                  step === s.num
+                    ? "bg-brand-teal text-white ring-4 ring-teal-100"
+                    : step > s.num
+                    ? "bg-brand-navy text-white"
+                    : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {step > s.num ? <CheckCircle2 className="h-4 w-4" /> : s.num}
+              </div>
+              <span className="hidden sm:inline text-xs font-medium text-slate-600">{s.label}</span>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* Global Error Banner */}
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 backdrop-blur-sm animate-in fade-in">
-            <AlertCircle className="h-5 w-5 shrink-0 text-rose-400 mt-0.5" />
-            <span className="flex-1 text-xs sm:text-sm">{error}</span>
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+            <span>{error}</span>
           </div>
         )}
 
         {/* --- STEP 1: ACCOUNT TYPE --- */}
         {step === 1 && (
-          <div className="rounded-3xl border border-white/10 bg-[#0D1322]/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">
-              <ShieldAlert className="h-4 w-4" />
-              Step 1 of 5 • Role Selection
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Choose Your SafeLink Profile
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              SafeLink provides dedicated cryptographic protection workflows tailored to whether you need instant distress shielding or wish to serve as a verified community responder.
+          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Select Your Account Type</h2>
+            <p className="mt-2 text-sm text-muted">
+              Choose the role that reflects how you will engage with the SafeLink emergency network.
             </p>
 
             <div className="mt-8 space-y-4">
-              {/* Woman Role */}
-              <div
-                onClick={() => updateField("role", "woman")}
-                className={`relative flex cursor-pointer items-start gap-4 rounded-2xl border p-5 sm:p-6 transition-all ${
+              <label
+                className={`relative flex cursor-pointer items-start gap-4 rounded-xl border p-5 transition-all ${
                   formData.role === "woman"
-                    ? "border-rose-500/50 bg-gradient-to-r from-rose-500/15 to-transparent ring-2 ring-rose-500/30"
-                    : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05]"
+                    ? "border-brand-teal bg-teal-50/40 ring-2 ring-brand-teal"
+                    : "border-border hover:bg-slate-50"
                 }`}
+                onClick={() => updateField("role", "woman")}
               >
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                  formData.role === "woman" ? "bg-rose-500 text-white shadow-lg shadow-rose-900/40" : "bg-white/5 text-slate-400"
-                }`}>
-                  <ShieldCheck className="h-6 w-6" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-brand-teal">
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-bold text-white font-heading">Distress Protection (For Women)</span>
-                    <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300">
-                      Primary Defense
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Distress Protection (For Women)</span>
+                    <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[11px] font-semibold text-brand-teal">
+                      Female Only
                     </span>
                   </div>
-                  <p className="mt-1 text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    Access to instant one-touch SOS activation, ephemeral live location dispatch to 3 designated emergency contacts, 112 bridge integration, and volunteer alert within 1,000m.
+                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                    Access to instant one-handed SOS activation, ephemeral live location sharing with 3 designated family contacts, and automated local volunteer dispatch.
                   </p>
-                  <div className="mt-3 flex items-center gap-4 text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> 0 KB idle telemetry
-                    </span>
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Encrypted link auto-burn
-                    </span>
-                  </div>
                 </div>
-              </div>
+              </label>
 
-              {/* Volunteer Role */}
-              <div
-                onClick={() => updateField("role", "volunteer")}
-                className={`relative flex cursor-pointer items-start gap-4 rounded-2xl border p-5 sm:p-6 transition-all ${
+              <label
+                className={`relative flex cursor-pointer items-start gap-4 rounded-xl border p-5 transition-all ${
                   formData.role === "volunteer"
-                    ? "border-teal-500/50 bg-gradient-to-r from-teal-500/15 to-transparent ring-2 ring-teal-500/30"
-                    : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05]"
+                    ? "border-brand-teal bg-teal-50/40 ring-2 ring-brand-teal"
+                    : "border-border hover:bg-slate-50"
                 }`}
+                onClick={() => updateField("role", "volunteer")}
               >
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                  formData.role === "volunteer" ? "bg-teal-500 text-white shadow-lg shadow-teal-900/40" : "bg-white/5 text-slate-400"
-                }`}>
-                  <User className="h-6 w-6" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-brand-navy">
+                  <User className="h-5 w-5" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-bold text-white font-heading">Community Volunteer Responder</span>
-                    <span className="rounded-full bg-teal-500/20 border border-teal-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-300">
-                      Verified Citizens (18+)
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Community Volunteer Responder</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
+                      All Genders (18+)
                     </span>
                   </div>
-                  <p className="mt-1 text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    Provide rapid assistance during localized distress events within 1,000m. Toggle duty availability anytime, receive loud sirens, and support official responders safely.
+                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                    Provide rapid assistance during distress events within 1 km. Toggle availability at will and support official emergency response safely.
                   </p>
-                  <div className="mt-3 flex items-center gap-4 text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1 text-teal-400">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Background checked
-                    </span>
-                    <span className="flex items-center gap-1 text-teal-400">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Zero liability good samaritan
-                    </span>
-                  </div>
                 </div>
-              </div>
+              </label>
             </div>
 
             <div className="mt-8 flex justify-end">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-7 py-3.5 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all"
+                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
               >
-                Continue to Personal Profile
+                Continue
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -509,147 +442,124 @@ function RegisterContent() {
 
         {/* --- STEP 2: PERSONAL & RESIDENTIAL DETAILS --- */}
         {step === 2 && (
-          <div className="rounded-3xl border border-white/10 bg-[#0D1322]/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">
-              <User className="h-4 w-4" />
-              Step 2 of 5 • Identity & Domicile
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Personal Details & Residential Domicile
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Required strictly for legal verification and emergency responder accountability under our Data Protection Charter.
+          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Personal Details & Address</h2>
+            <p className="mt-2 text-sm text-muted">
+              Used strictly for identity vetting and emergency coordination under our Data Protection Charter.
             </p>
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Full Legal Name (Matching Official Government ID) *
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Legal Name (as on Government ID) *
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={formData.fullLegalName}
-                    onChange={(e) => updateField("fullLegalName", e.target.value)}
-                    placeholder="e.g. Priya Sharma"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formData.fullLegalName}
+                  onChange={(e) => updateField("fullLegalName", e.target.value)}
+                  placeholder="e.g. Priya Sharma"
+                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    Gender *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender *</label>
                   <select
                     value={formData.gender}
                     onChange={(e) => updateField("gender", e.target.value)}
                     disabled={formData.role === "woman"}
-                    className="w-full rounded-xl border border-white/10 bg-[#141C30] px-4 py-3 text-sm text-white focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-70"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm bg-white focus:border-brand-teal focus:outline-none disabled:bg-slate-50"
                   >
                     <option value="female">Female</option>
                     {formData.role === "volunteer" && (
                       <>
                         <option value="male">Male</option>
-                        <option value="other">Other / Prefer not to say</option>
+                        <option value="other">Other / Non-Binary</option>
                       </>
                     )}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    Date of Birth (18+ only) *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Birth (18+ only) *</label>
                   <input
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => updateField("dateOfBirth", e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-[#141C30] px-4 py-3 text-sm text-white focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white/[0.02] p-4 border border-white/5 text-xs text-slate-400">
-                <span className="font-semibold text-slate-200">Data Protection Guarantee:</span> Residential information is encrypted at rest using AES-256-GCM. It is never sold, publicly viewable, or accessible to non-admin users.
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-xs text-slate-600">
+                <span className="font-semibold text-foreground">Why do we need residential address?</span>
+                <p className="mt-1">
+                  Provides a legal domicile for verified response protocols. Your exact address is never published or exposed to casual users.
+                </p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Residential Address Line 1 *
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={formData.addressLine1}
-                    onChange={(e) => updateField("addressLine1", e.target.value)}
-                    placeholder="House/Flat No., Building Name, Street"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  />
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Address Line 1 *</label>
+                <input
+                  type="text"
+                  value={formData.addressLine1}
+                  onChange={(e) => updateField("addressLine1", e.target.value)}
+                  placeholder="Flat / House No., Building Name, Street"
+                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Address Line 2 (Optional)
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Address Line 2</label>
                 <input
                   type="text"
                   value={formData.addressLine2}
                   onChange={(e) => updateField("addressLine2", e.target.value)}
-                  placeholder="Locality, Sector, Landmark"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                  placeholder="Apartment, Landmark, Suite"
+                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    City *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">City *</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => updateField("city", e.target.value)}
-                    placeholder="e.g. New Delhi"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                    placeholder="Bengaluru"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    State *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">State *</label>
                   <input
                     type="text"
                     value={formData.state}
                     onChange={(e) => updateField("state", e.target.value)}
-                    placeholder="e.g. Delhi"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                    placeholder="Karnataka"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                    PIN Code *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code *</label>
                   <input
                     type="text"
                     value={formData.pinCode}
                     onChange={(e) => updateField("pinCode", e.target.value)}
-                    placeholder="e.g. 110001"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 font-mono"
+                    placeholder="560001"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 flex justify-between gap-4">
+            <div className="mt-8 flex justify-between">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -657,9 +567,9 @@ function RegisterContent() {
               <button
                 type="button"
                 onClick={handleProceedFromPersonal}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-7 py-3 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all"
+                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
               >
-                Continue to Verification
+                Continue
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -668,63 +578,52 @@ function RegisterContent() {
 
         {/* --- STEP 3: DUAL OTP VERIFICATION --- */}
         {step === 3 && (
-          <div className="rounded-3xl border border-white/10 bg-[#0D1322]/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">
-              <Mail className="h-4 w-4" />
-              Step 3 of 5 • Two-Factor Contact Verification
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Verify Phone & Email Credentials
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Both channels must be verified to prevent bot accounts and guarantee distress alerts reach real contacts and verified responders.
+          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Verify Mobile & Email</h2>
+            <p className="mt-2 text-sm text-muted">
+              Both phone and email must be verified to prevent impersonation and guarantee reliable distress notifications.
             </p>
 
             <div className="mt-6 space-y-6">
               {/* Phone OTP Section */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-white block">Mobile Phone Verification</span>
-                      <span className="text-xs text-slate-400">Used for instant SMS distress dispatches</span>
-                    </div>
+              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-brand-teal" />
+                    <span className="text-sm font-bold text-foreground">Mobile Phone Verification</span>
                   </div>
                   {phoneVerified && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Verified
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="h-3 w-3" /> Verified
                     </span>
                   )}
                 </div>
 
                 {!phoneVerified ? (
                   <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex gap-2">
                       <input
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => updateField("phone", e.target.value)}
                         placeholder="+919876543210"
                         disabled={phoneOtpSent}
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 font-mono disabled:opacity-60"
+                        className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm bg-white"
                       />
                       <button
                         type="button"
                         onClick={handleSendPhoneOtp}
                         disabled={loading || phoneCooldown > 0}
-                        className="rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 px-5 py-3 text-xs font-bold text-white disabled:opacity-40 transition-colors"
+                        className="rounded-lg bg-brand-navy px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                       >
-                        {phoneOtpSent ? (phoneCooldown > 0 ? `Resend in ${phoneCooldown}s` : "Resend OTP") : "Send OTP"}
+                        {phoneOtpSent ? (phoneCooldown > 0 ? `Resend (${phoneCooldown}s)` : "Resend OTP") : "Send OTP"}
                       </button>
                     </div>
 
                     {phoneOtpSent && !phoneVerified && (
-                      <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-4 py-2 text-xs text-rose-300 border border-rose-500/20">
-                        <Sparkles className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-                        <span>OTP dispatched to {formData.phone}. Enter the 6-digit code below:</span>
+                      <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>Verification code dispatched to {formData.phone}</span>
                       </div>
                     )}
 
@@ -735,14 +634,14 @@ function RegisterContent() {
                           maxLength={6}
                           value={formData.phoneOtp}
                           onChange={(e) => updateField("phoneOtp", e.target.value)}
-                          placeholder="••••••"
-                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-center font-mono tracking-[0.5em] text-white focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                          placeholder="6-digit OTP code"
+                          className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm text-center font-mono tracking-widest bg-white"
                         />
                         <button
                           type="button"
                           onClick={handleVerifyPhoneOtp}
                           disabled={loading}
-                          className="rounded-xl bg-rose-500 hover:bg-rose-600 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-rose-900/30 transition-all"
+                          className="rounded-lg bg-brand-teal px-5 py-2 text-xs font-semibold text-white hover:bg-teal-800"
                         >
                           Verify Code
                         </button>
@@ -750,56 +649,49 @@ function RegisterContent() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-300 font-mono bg-white/5 px-3 py-2 rounded-lg border border-white/5 inline-block">
-                    {formData.phone}
-                  </p>
+                  <p className="text-xs text-slate-600 font-mono">{formData.phone}</p>
                 )}
               </div>
 
               {/* Email OTP Section */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-white block">Email Address Verification</span>
-                      <span className="text-xs text-slate-400">Used for session alerts and emergency reports</span>
-                    </div>
+              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-brand-teal" />
+                    <span className="text-sm font-bold text-foreground">Email Address Verification</span>
                   </div>
                   {emailVerified && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Verified
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="h-3 w-3" /> Verified
                     </span>
                   )}
                 </div>
 
                 {!emailVerified ? (
                   <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex gap-2">
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => updateField("email", e.target.value)}
                         placeholder="priya.sharma@example.com"
                         disabled={emailOtpSent}
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60"
+                        className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm bg-white"
                       />
                       <button
                         type="button"
                         onClick={handleSendEmailOtp}
                         disabled={loading || emailCooldown > 0}
-                        className="rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 px-5 py-3 text-xs font-bold text-white disabled:opacity-40 transition-colors"
+                        className="rounded-lg bg-brand-navy px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                       >
-                        {emailOtpSent ? (emailCooldown > 0 ? `Resend in ${emailCooldown}s` : "Resend OTP") : "Send OTP"}
+                        {emailOtpSent ? (emailCooldown > 0 ? `Resend (${emailCooldown}s)` : "Resend OTP") : "Send OTP"}
                       </button>
                     </div>
 
                     {emailOtpSent && !emailVerified && (
-                      <div className="flex items-center gap-2 rounded-xl bg-teal-500/10 px-4 py-2 text-xs text-teal-300 border border-teal-500/20">
-                        <Sparkles className="h-3.5 w-3.5 text-teal-400 shrink-0" />
-                        <span>OTP dispatched to {formData.email}. Enter the 6-digit code below:</span>
+                      <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>Verification code dispatched to {formData.email}</span>
                       </div>
                     )}
 
@@ -810,14 +702,14 @@ function RegisterContent() {
                           maxLength={6}
                           value={formData.emailOtp}
                           onChange={(e) => updateField("emailOtp", e.target.value)}
-                          placeholder="••••••"
-                          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-center font-mono tracking-[0.5em] text-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                          placeholder="6-digit OTP code"
+                          className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm text-center font-mono tracking-widest bg-white"
                         />
                         <button
                           type="button"
                           onClick={handleVerifyEmailOtp}
                           disabled={loading}
-                          className="rounded-xl bg-teal-500 hover:bg-teal-600 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-teal-900/30 transition-all"
+                          className="rounded-lg bg-brand-teal px-5 py-2 text-xs font-semibold text-white hover:bg-teal-800"
                         >
                           Verify Code
                         </button>
@@ -825,18 +717,16 @@ function RegisterContent() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-300 font-mono bg-white/5 px-3 py-2 rounded-lg border border-white/5 inline-block">
-                    {formData.email}
-                  </p>
+                  <p className="text-xs text-slate-600 font-mono">{formData.email}</p>
                 )}
               </div>
             </div>
 
-            <div className="mt-8 flex justify-between gap-4">
+            <div className="mt-8 flex justify-between">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -845,9 +735,9 @@ function RegisterContent() {
                 type="button"
                 disabled={!phoneVerified || !emailVerified}
                 onClick={() => setStep(4)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-7 py-3 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue to Identity Vetting
+                Continue to Vetting
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -856,34 +746,30 @@ function RegisterContent() {
 
         {/* --- STEP 4: IDENTITY & LIVENESS VETTING --- */}
         {step === 4 && (
-          <div className="rounded-3xl border border-white/10 bg-[#0D1322]/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">
-              <Fingerprint className="h-4 w-4" />
-              Step 4 of 5 • Official Identity & Liveness Check
+          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800 mb-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              Official Identity & Biometric Verification
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Government Identity & Biometric Liveness
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              SafeLink verifies all participants via official DigiLocker OAuth or government ID credentials alongside real-time anti-spoofing to protect against impersonation.
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Identity & Biometric Liveness Verification</h2>
+            <p className="mt-1 text-sm text-muted">
+              In compliance with India&apos;s DPDP Act and emergency safety standards, all members are verified through official DigiLocker integration or government-issued photo credentials to ensure trust and responder accountability.
             </p>
 
-            <div className="mt-6 space-y-5">
+            <div className="mt-6 space-y-6">
               {/* DigiLocker Card */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <FileCheck className="h-5 w-5" />
-                    </div>
+              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="h-5 w-5 text-brand-teal" />
                     <div>
-                      <p className="text-sm font-bold text-white">Government ID Gateway (DigiLocker / Aadhaar / Voter ID)</p>
-                      <p className="text-xs text-slate-400">Secure SHA-256 zero-knowledge cryptographic verification</p>
+                      <p className="text-sm font-bold text-foreground">Government Identity (DigiLocker / Aadhaar / Voter ID)</p>
+                      <p className="text-xs text-muted">Official DigiLocker OAuth 2.0 & Government ID Gateway</p>
                     </div>
                   </div>
                   {identityVerified && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Verified
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Verified
                     </span>
                   )}
                 </div>
@@ -893,65 +779,61 @@ function RegisterContent() {
                     type="button"
                     onClick={handleInitiateIdentity}
                     disabled={loading}
-                    className="flex items-center justify-center gap-2 w-full rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 py-3 text-xs sm:text-sm font-bold text-white transition-all shadow-md"
+                    className="flex items-center justify-center gap-2 w-full rounded-lg bg-brand-navy py-2.5 text-xs font-semibold text-white hover:bg-slate-800 shadow-sm"
                   >
-                    {loading ? <RefreshCw className="h-4 w-4 animate-spin text-emerald-400" /> : "Verify Identity via DigiLocker"}
+                    {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Verify Identity via DigiLocker"}
                   </button>
                 ) : (
-                  <div className="text-xs text-emerald-300 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 font-mono flex items-center justify-between">
-                    <span>ID_TOKEN: DL-GOV-9843-VERIFIED</span>
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">Signed</span>
-                  </div>
+                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
+                    Ref: <code>DL-GOV-ID-VERIFIED</code> • Cryptographic Signature Authenticated
+                  </p>
                 )}
               </div>
 
               {/* Liveness Check Card */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                      <Camera className="h-5 w-5" />
-                    </div>
+              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Camera className="h-5 w-5 text-brand-teal" />
                     <div>
-                      <p className="text-sm font-bold text-white">Active Facial Liveness & Anti-Deepfake Challenge</p>
-                      <p className="text-xs text-slate-400">Ensures physical presence and prevents stolen photo injection</p>
+                      <p className="text-sm font-bold text-foreground">Active Liveness & Anti-Spoofing Check</p>
+                      <p className="text-xs text-muted">Biometric facial challenge to prevent spoofing and bot accounts</p>
                     </div>
                   </div>
                   {livenessPassed && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Confirmed
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Liveness Confirmed
                     </span>
                   )}
                 </div>
 
                 {!livenessPassed ? (
                   <div className="space-y-3">
-                    <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 p-3.5 text-xs text-rose-200">
-                      <strong className="text-rose-300">Biometric Challenge:</strong> Look directly into your front camera and <em>{livenessAction}</em>.
+                    <div className="rounded-lg bg-teal-50 border border-teal-200 p-3 text-xs text-slate-700">
+                      <strong>Challenge:</strong> Look at your camera and <em>{livenessAction}</em>.
                     </div>
                     <button
                       type="button"
                       onClick={handleRunLiveness}
                       disabled={loading}
-                      className="flex items-center justify-center gap-2 w-full rounded-xl bg-rose-500 hover:bg-rose-600 py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-rose-900/30 transition-all"
+                      className="flex items-center justify-center gap-2 w-full rounded-lg bg-brand-teal py-2.5 text-xs font-semibold text-white hover:bg-teal-800 shadow-sm"
                     >
-                      {loading ? <RefreshCw className="h-4 w-4 animate-spin text-white" /> : "Run Biometric Liveness Verification"}
+                      {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Capture Camera & Complete Liveness Verification"}
                     </button>
                   </div>
                 ) : (
-                  <div className="text-xs text-emerald-300 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 font-mono flex items-center justify-between">
-                    <span>Confidence: 99.8% • Passive Anti-Spoofing Passed</span>
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">Live</span>
-                  </div>
+                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
+                    Confidence: 99.4% • Liveness Criteria Verified • Securely Encrypted
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="mt-8 flex justify-between gap-4">
+            <div className="mt-8 flex justify-between">
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -960,9 +842,9 @@ function RegisterContent() {
                 type="button"
                 disabled={!identityVerified || !livenessPassed}
                 onClick={() => setStep(5)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-7 py-3 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue to Security Setup
+                Continue to Password Setup
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -971,74 +853,54 @@ function RegisterContent() {
 
         {/* --- STEP 5: PASSWORD & CONSENT --- */}
         {step === 5 && (
-          <form onSubmit={handleFinalSubmit} className="rounded-3xl border border-white/10 bg-[#0D1322]/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">
-              <Lock className="h-4 w-4" />
-              Step 5 of 5 • Credential Vault & Consent
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Create Your Security Password
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Your password protects your emergency contacts and profile, hashed with Argon2id cryptographic parameters.
+          <form onSubmit={handleFinalSubmit} className="rounded-2xl border border-border bg-white p-8 shadow-card">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Set Password & Complete</h2>
+            <p className="mt-2 text-sm text-muted">
+              Choose a strong password protected by Argon2id cryptographic hashing.
             </p>
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Password (Minimum 8 Characters) *
-                </label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Password (Min. 8 characters) *</label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type="password"
                     value={formData.password}
                     onChange={(e) => updateField("password", e.target.value)}
-                    placeholder="Create a strong password"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-12 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                    placeholder="••••••••••••"
+                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <Lock className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Confirm Password *
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={(e) => updateField("confirmPassword", e.target.value)}
-                    placeholder="Re-enter your password"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  />
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                <input
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => updateField("confirmPassword", e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                />
               </div>
 
-              {/* DPDP Consent */}
-              <div className="pt-3">
-                <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+              {/* DPDP Privacy & Consent Checkbox */}
+              <div className="pt-2">
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.acceptedTerms}
                     onChange={(e) => updateField("acceptedTerms", e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-white/20 bg-white/10 text-rose-500 focus:ring-rose-500"
+                    className="mt-1 h-4 w-4 rounded border-border text-brand-teal focus:ring-brand-teal"
                   />
-                  <span className="text-xs text-slate-400 leading-relaxed">
+                  <span className="text-xs text-slate-600 leading-relaxed">
                     I explicitly consent to the collection and processing of my personal details and location strictly during emergency activations under India&apos;s Digital Personal Data Protection Act (DPDP Act 2023). I agree to the{" "}
-                    <Link href="/terms" className="text-rose-400 font-semibold hover:underline">
+                    <Link href="/terms" className="text-brand-teal font-medium hover:underline">
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-rose-400 font-semibold hover:underline">
+                    <Link href="/privacy" className="text-brand-teal font-medium hover:underline">
                       Privacy Policy
                     </Link>.
                   </span>
@@ -1046,11 +908,11 @@ function RegisterContent() {
               </div>
             </div>
 
-            <div className="mt-8 flex justify-between gap-4">
+            <div className="mt-8 flex justify-between">
               <button
                 type="button"
                 onClick={() => setStep(4)}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -1058,9 +920,9 @@ function RegisterContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-8 py-3 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-brand-teal px-8 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50"
               >
-                {loading ? <RefreshCw className="h-4 w-4 animate-spin text-white" /> : "Complete Registration"}
+                {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Complete Registration"}
               </button>
             </div>
           </form>
@@ -1068,33 +930,25 @@ function RegisterContent() {
 
         {/* --- STEP 6: COMPLETION CONFIRMATION --- */}
         {step === 6 && (
-          <div className="rounded-3xl border border-emerald-500/30 bg-[#0D1322]/95 p-8 sm:p-12 text-center backdrop-blur-xl shadow-2xl">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 mb-6 shadow-xl shadow-emerald-950/50">
+          <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-card">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-700 mb-4">
               <CheckCircle2 className="h-8 w-8" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
-              Registration & Verification Complete!
-            </h2>
-            <p className="mt-2 text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
-              Your SafeLink identity credentials have been created, verified, and sealed in our cryptographic directory. You can now access your defense console.
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Registration Complete!</h2>
+            <p className="mt-2 text-sm text-muted max-w-md mx-auto">
+              Your account has been created and verified. You are now equipped to access the SafeLink emergency platform.
             </p>
 
-            <div className="mt-6 inline-block rounded-xl bg-white/5 p-4 border border-white/10 text-xs font-mono text-emerald-300">
-              Member ID: {registeredUserId || "SL-MEMBER-SECURE"} • Status: 100% VERIFIED
+            <div className="mt-6 rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs font-mono text-slate-700">
+              User ID: {registeredUserId} • Status: VERIFIED
             </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="mt-8 flex justify-center gap-4">
               <Link
                 href="/login"
-                className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-8 py-3.5 text-sm font-bold text-white shadow-xl shadow-rose-900/40 hover:from-rose-600 hover:to-rose-700 transition-all"
+                className="rounded-lg bg-brand-teal px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
               >
-                Sign In to Safety Dashboard
-              </Link>
-              <Link
-                href="/download"
-                className="w-full sm:w-auto rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-6 py-3.5 text-sm font-semibold text-slate-300 transition-colors"
-              >
-                Download Mobile APK
+                Sign In to Dashboard
               </Link>
             </div>
           </div>
