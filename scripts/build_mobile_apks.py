@@ -116,14 +116,28 @@ def build_app(app_name, package_name, output_apk_name):
     run_cmd(["flutter", "build", "apk", "--debug"], cwd=app_dir)
 
     # 7. Locate generated APK
-    outputs_dir = app_dir / "build" / "app" / "outputs" / "flutter-apk"
-    apk_candidates = list(outputs_dir.glob("*.apk"))
+    apk_candidates = (
+        list(app_dir.glob("build/app/outputs/flutter-apk/*.apk"))
+        or list(app_dir.glob("build/app/outputs/apk/debug/*.apk"))
+        or list(app_dir.glob("**/outputs/**/*.apk"))
+        or list(app_dir.glob("**/*.apk"))
+    )
+    apk_candidates = [
+        f for f in apk_candidates
+        if f.is_file() and f.name.endswith(".apk") and not f.name.endswith("-unsigned.apk")
+    ]
     if not apk_candidates:
-        print(f"[FATAL] No APK found in {outputs_dir}!")
+        print(f"[FATAL] No APK found for {app_name}!", flush=True)
+        build_folder = app_dir / "build"
+        if build_folder.exists():
+            print(f"Listing files in {build_folder}:", flush=True)
+            for p in build_folder.rglob("*"):
+                if p.is_file():
+                    print(f"  {p.relative_to(app_dir)} ({p.stat().st_size} bytes)", flush=True)
         sys.exit(1)
 
     built_apk = apk_candidates[0]
-    print(f"[OK] Built APK: {built_apk} ({built_apk.stat().st_size / (1024*1024):.2f} MB)")
+    print(f"[OK] Built APK: {built_apk} ({built_apk.stat().st_size / (1024*1024):.2f} MB)", flush=True)
 
     # 8. Copy to dist-apks and web downloads
     dist_dir = ROOT_DIR / "dist-apks"
