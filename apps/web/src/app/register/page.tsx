@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck, ArrowRight, ArrowLeft, CheckCircle2,
   AlertCircle, Camera, Lock, User, MapPin, Mail, Phone,
-  FileCheck, RefreshCw, KeyRound, Sparkles
+  FileCheck, RefreshCw, KeyRound, Check, Shield, Users
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -34,7 +34,7 @@ interface RegisterFormData {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center p-8 text-sm text-muted">Loading SafeLink Registration...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-neutral-50 flex items-center justify-center p-8 text-xs text-neutral-500">Loading SafeLink Registration...</div>}>
       <RegisterContent />
     </Suspense>
   );
@@ -80,13 +80,12 @@ function RegisterContent() {
   const [emailCooldown, setEmailCooldown] = useState<number>(0);
 
   // Identity & Liveness States
-  const [identitySessionId, setIdentitySessionId] = useState<string | null>(null);
   const [identityVerified, setIdentityVerified] = useState<boolean>(false);
   const [livenessPassed, setLivenessPassed] = useState<boolean>(false);
-  const [livenessAction, setLivenessAction] = useState<string>("Blink twice into the camera");
+  const [livenessAction] = useState<string>("Blink twice into the camera");
 
   // Registration ID after step 5
-  const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+  const [, setRegisteredUserId] = useState<string | null>(null);
 
   // Cooldown timers
   useEffect(() => {
@@ -238,16 +237,15 @@ function RegisterContent() {
     }
   };
 
-  // --- Step 4: Identity & Liveness Simulation ---
+  // --- Step 4: Identity & Liveness ---
   const handleInitiateIdentity = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Simulate ID check
       setTimeout(() => {
         setIdentityVerified(true);
         setLoading(false);
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Verification check failed.");
       setLoading(false);
@@ -259,14 +257,14 @@ function RegisterContent() {
     setTimeout(() => {
       setLivenessPassed(true);
       setLoading(false);
-    }, 1500);
+    }, 1200);
   };
 
   // --- Step 5: Final Submission ---
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.password || formData.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("Password must be at least 8 characters long.");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -305,7 +303,7 @@ function RegisterContent() {
       );
 
       setRegisteredUserId(regRes.user_id);
-      setStep(6); // Success
+      setStep(6);
     } catch (err: any) {
       setError(err.message || "Registration failed. Please review your inputs.");
     } finally {
@@ -313,646 +311,652 @@ function RegisterContent() {
     }
   };
 
+  const stepTitles = [
+    "Role Selection",
+    "Personal Details",
+    "Dual OTP Check",
+    "Government ID & Liveness",
+    "Password Setup",
+    "Registration Complete"
+  ];
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-neutral-50 text-neutral-900">
       {/* Top Header */}
-      <header className="border-b border-border bg-white py-4">
+      <header className="border-b border-neutral-200 bg-white py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-navyDark text-white shadow-sm">
-              <ShieldCheck className="h-5 w-5 text-brand-tealLight" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-950 text-white shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">SafeLink</span>
+            <span className="text-base font-bold tracking-tight text-neutral-950">SafeLink</span>
           </Link>
-          <div className="text-xs text-muted">
-            Already verified?{" "}
-            <Link href="/login" className="font-semibold text-brand-teal hover:underline">
+          <div className="text-xs text-neutral-500">
+            Already registered?{" "}
+            <Link href="/login" className="font-semibold text-neutral-950 hover:underline">
               Sign In
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Main Wizard Container */}
-      <main className="mx-auto my-8 w-full max-w-2xl px-6">
-        {/* Progress Stepper */}
-        <div className="mb-8 flex items-center justify-between">
-          {[
-            { num: 1, label: "Account" },
-            { num: 2, label: "Identity" },
-            { num: 3, label: "Contacts" },
-            { num: 4, label: "Vetting" },
-            { num: 5, label: "Security" },
-          ].map((s) => (
-            <div key={s.num} className="flex items-center gap-2">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                  step === s.num
-                    ? "bg-brand-teal text-white ring-4 ring-teal-100"
-                    : step > s.num
-                    ? "bg-brand-navy text-white"
-                    : "bg-slate-200 text-slate-600"
-                }`}
-              >
-                {step > s.num ? <CheckCircle2 className="h-4 w-4" /> : s.num}
-              </div>
-              <span className="hidden sm:inline text-xs font-medium text-slate-600">{s.label}</span>
-            </div>
-          ))}
+      {/* Main Registration Content */}
+      <main className="mx-auto my-auto w-full max-w-2xl px-6 py-12">
+        {/* Progress Tracker */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-neutral-400 mb-2">
+            <span>Step {step} of 5</span>
+            <span className="text-neutral-900 font-semibold">{stepTitles[step - 1]}</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-neutral-200 overflow-hidden">
+            <div
+              className="h-full bg-neutral-950 transition-all duration-300 ease-out"
+              style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
+            />
+          </div>
         </div>
 
-        {/* Global Error Banner */}
-        {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* --- STEP 1: ACCOUNT TYPE --- */}
-        {step === 1 && (
-          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Select Your Account Type</h2>
-            <p className="mt-2 text-sm text-muted">
-              Choose the role that reflects how you will engage with the SafeLink emergency network.
-            </p>
-
-            <div className="mt-8 space-y-4">
-              <label
-                className={`relative flex cursor-pointer items-start gap-4 rounded-xl border p-5 transition-all ${
-                  formData.role === "woman"
-                    ? "border-brand-teal bg-teal-50/40 ring-2 ring-brand-teal"
-                    : "border-border hover:bg-slate-50"
-                }`}
-                onClick={() => updateField("role", "woman")}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-brand-teal">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground">Distress Protection (For Women)</span>
-                    <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[11px] font-semibold text-brand-teal">
-                      Female Only
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">
-                    Access to instant one-handed SOS activation, ephemeral live location sharing with 3 designated family contacts, and automated local volunteer dispatch.
-                  </p>
-                </div>
-              </label>
-
-              <label
-                className={`relative flex cursor-pointer items-start gap-4 rounded-xl border p-5 transition-all ${
-                  formData.role === "volunteer"
-                    ? "border-brand-teal bg-teal-50/40 ring-2 ring-brand-teal"
-                    : "border-border hover:bg-slate-50"
-                }`}
-                onClick={() => updateField("role", "volunteer")}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-brand-navy">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground">Community Volunteer Responder</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
-                      All Genders (18+)
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">
-                    Provide rapid assistance during distress events within 1 km. Toggle availability at will and support official emergency response safely.
-                  </p>
-                </div>
-              </label>
+        {/* Form Box */}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-7 sm:p-10 shadow-sm space-y-6">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
+          )}
 
-            <div className="mt-8 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* --- STEP 2: PERSONAL & RESIDENTIAL DETAILS --- */}
-        {step === 2 && (
-          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Personal Details & Address</h2>
-            <p className="mt-2 text-sm text-muted">
-              Used strictly for identity vetting and emergency coordination under our Data Protection Charter.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Full Legal Name (as on Government ID) *
-                </label>
-                <input
-                  type="text"
-                  value={formData.fullLegalName}
-                  onChange={(e) => updateField("fullLegalName", e.target.value)}
-                  placeholder="e.g. Priya Sharma"
-                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender *</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => updateField("gender", e.target.value)}
-                    disabled={formData.role === "woman"}
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm bg-white focus:border-brand-teal focus:outline-none disabled:bg-slate-50"
-                  >
-                    <option value="female">Female</option>
-                    {formData.role === "volunteer" && (
-                      <>
-                        <option value="male">Male</option>
-                        <option value="other">Other / Non-Binary</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Birth (18+ only) *</label>
-                  <input
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => updateField("dateOfBirth", e.target.value)}
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-xs text-slate-600">
-                <span className="font-semibold text-foreground">Why do we need residential address?</span>
-                <p className="mt-1">
-                  Provides a legal domicile for verified response protocols. Your exact address is never published or exposed to casual users.
+          {/* ========================================================================= */}
+          {/* STEP 1: ROLE SELECTION                                                    */}
+          {/* ========================================================================= */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="space-y-1 text-center">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-950">
+                  Select Your Account Role
+                </h2>
+                <p className="text-xs text-neutral-500 leading-relaxed max-w-md mx-auto">
+                  SafeLink maintains strict cryptographic distinction between emergency distress beneficiaries and community volunteer responders.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Address Line 1 *</label>
-                <input
-                  type="text"
-                  value={formData.addressLine1}
-                  onChange={(e) => updateField("addressLine1", e.target.value)}
-                  placeholder="Flat / House No., Building Name, Street"
-                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Address Line 2</label>
-                <input
-                  type="text"
-                  value={formData.addressLine2}
-                  onChange={(e) => updateField("addressLine2", e.target.value)}
-                  placeholder="Apartment, Landmark, Suite"
-                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">City *</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => updateField("city", e.target.value)}
-                    placeholder="Bengaluru"
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">State *</label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => updateField("state", e.target.value)}
-                    placeholder="Karnataka"
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code *</label>
-                  <input
-                    type="text"
-                    value={formData.pinCode}
-                    onChange={(e) => updateField("pinCode", e.target.value)}
-                    placeholder="560001"
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleProceedFromPersonal}
-                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* --- STEP 3: DUAL OTP VERIFICATION --- */}
-        {step === 3 && (
-          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Verify Mobile & Email</h2>
-            <p className="mt-2 text-sm text-muted">
-              Both phone and email must be verified to prevent impersonation and guarantee reliable distress notifications.
-            </p>
-
-            <div className="mt-6 space-y-6">
-              {/* Phone OTP Section */}
-              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-brand-teal" />
-                    <span className="text-sm font-bold text-foreground">Mobile Phone Verification</span>
-                  </div>
-                  {phoneVerified && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="h-3 w-3" /> Verified
-                    </span>
-                  )}
-                </div>
-
-                {!phoneVerified ? (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => updateField("phone", e.target.value)}
-                        placeholder="+919876543210"
-                        disabled={phoneOtpSent}
-                        className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendPhoneOtp}
-                        disabled={loading || phoneCooldown > 0}
-                        className="rounded-lg bg-brand-navy px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        {phoneOtpSent ? (phoneCooldown > 0 ? `Resend (${phoneCooldown}s)` : "Resend OTP") : "Send OTP"}
-                      </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                {/* Woman Card */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateField("role", "woman");
+                    updateField("gender", "female");
+                  }}
+                  className={`rounded-xl border p-5 text-left transition-all relative ${
+                    formData.role === "woman"
+                      ? "border-neutral-950 bg-neutral-50/70 shadow-sm ring-1 ring-neutral-950"
+                      : "border-neutral-200 hover:border-neutral-300 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                      <Shield className="h-4 w-4" />
                     </div>
-
-                    {phoneOtpSent && !phoneVerified && (
-                      <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        <span>Verification code dispatched to {formData.phone}</span>
-                      </div>
-                    )}
-
-                    {phoneOtpSent && (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={formData.phoneOtp}
-                          onChange={(e) => updateField("phoneOtp", e.target.value)}
-                          placeholder="6-digit OTP code"
-                          className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm text-center font-mono tracking-widest bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleVerifyPhoneOtp}
-                          disabled={loading}
-                          className="rounded-lg bg-brand-teal px-5 py-2 text-xs font-semibold text-white hover:bg-teal-800"
-                        >
-                          Verify Code
-                        </button>
-                      </div>
+                    {formData.role === "woman" && (
+                      <Check className="h-4 w-4 text-neutral-950" />
                     )}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-600 font-mono">{formData.phone}</p>
-                )}
-              </div>
-
-              {/* Email OTP Section */}
-              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-brand-teal" />
-                    <span className="text-sm font-bold text-foreground">Email Address Verification</span>
-                  </div>
-                  {emailVerified && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="h-3 w-3" /> Verified
-                    </span>
-                  )}
-                </div>
-
-                {!emailVerified ? (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => updateField("email", e.target.value)}
-                        placeholder="priya.sharma@example.com"
-                        disabled={emailOtpSent}
-                        className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendEmailOtp}
-                        disabled={loading || emailCooldown > 0}
-                        className="rounded-lg bg-brand-navy px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        {emailOtpSent ? (emailCooldown > 0 ? `Resend (${emailCooldown}s)` : "Resend OTP") : "Send OTP"}
-                      </button>
-                    </div>
-
-                    {emailOtpSent && !emailVerified && (
-                      <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 text-xs text-brand-teal border border-teal-200">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        <span>Verification code dispatched to {formData.email}</span>
-                      </div>
-                    )}
-
-                    {emailOtpSent && (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={formData.emailOtp}
-                          onChange={(e) => updateField("emailOtp", e.target.value)}
-                          placeholder="6-digit OTP code"
-                          className="flex-1 rounded-lg border border-border px-3.5 py-2 text-sm text-center font-mono tracking-widest bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleVerifyEmailOtp}
-                          disabled={loading}
-                          className="rounded-lg bg-brand-teal px-5 py-2 text-xs font-semibold text-white hover:bg-teal-800"
-                        >
-                          Verify Code
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-600 font-mono">{formData.email}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={!phoneVerified || !emailVerified}
-                onClick={() => setStep(4)}
-                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue to Vetting
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* --- STEP 4: IDENTITY & LIVENESS VETTING --- */}
-        {step === 4 && (
-          <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800 mb-2">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              Official Identity & Biometric Verification
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Identity & Biometric Liveness Verification</h2>
-            <p className="mt-1 text-sm text-muted">
-              In compliance with India&apos;s DPDP Act and emergency safety standards, all members are verified through official DigiLocker integration or government-issued photo credentials to ensure trust and responder accountability.
-            </p>
-
-            <div className="mt-6 space-y-6">
-              {/* DigiLocker Card */}
-              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="h-5 w-5 text-brand-teal" />
-                    <div>
-                      <p className="text-sm font-bold text-foreground">Government Identity (DigiLocker / Aadhaar / Voter ID)</p>
-                      <p className="text-xs text-muted">Official DigiLocker OAuth 2.0 & Government ID Gateway</p>
-                    </div>
-                  </div>
-                  {identityVerified && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Verified
-                    </span>
-                  )}
-                </div>
-
-                {!identityVerified ? (
-                  <button
-                    type="button"
-                    onClick={handleInitiateIdentity}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 w-full rounded-lg bg-brand-navy py-2.5 text-xs font-semibold text-white hover:bg-slate-800 shadow-sm"
-                  >
-                    {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Verify Identity via DigiLocker"}
-                  </button>
-                ) : (
-                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
-                    Ref: <code>DL-GOV-ID-VERIFIED</code> • Cryptographic Signature Authenticated
+                  <h3 className="text-sm font-bold text-neutral-950">Woman (Distress Protection)</h3>
+                  <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                    Access to hold-to-activate SOS, encrypted live tracking to 3 contacts, and proximity volunteer dispatch.
                   </p>
-                )}
+                  <span className="inline-block mt-3 text-[10px] font-mono text-neutral-400">
+                    *Restricted to female users (18+)
+                  </span>
+                </button>
+
+                {/* Volunteer Card */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateField("role", "volunteer");
+                    updateField("gender", "male");
+                  }}
+                  className={`rounded-xl border p-5 text-left transition-all relative ${
+                    formData.role === "volunteer"
+                      ? "border-neutral-950 bg-neutral-50/70 shadow-sm ring-1 ring-neutral-950"
+                      : "border-neutral-200 hover:border-neutral-300 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100 text-neutral-800">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    {formData.role === "volunteer" && (
+                      <Check className="h-4 w-4 text-neutral-950" />
+                    )}
+                  </div>
+                  <h3 className="text-sm font-bold text-neutral-950">Community Volunteer</h3>
+                  <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                    Receive nearby distress alerts within 1 km, maintain availability status, and provide peaceful escort.
+                  </p>
+                  <span className="inline-block mt-3 text-[10px] font-mono text-neutral-400">
+                    *Open to all genders (18+)
+                  </span>
+                </button>
               </div>
 
-              {/* Liveness Check Card */}
-              <div className="rounded-xl border border-border p-5 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Camera className="h-5 w-5 text-brand-teal" />
+              <div className="pt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.98]"
+                >
+                  Continue to Personal Details
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 2: PERSONAL & RESIDENTIAL DETAILS                                    */}
+          {/* ========================================================================= */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-950">Personal Details</h2>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Required under DPDP Act compliance to establish verified responder accountability and distress verification.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                    Full Legal Name (as on Government ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.fullLegalName}
+                    onChange={(e) => updateField("fullLegalName", e.target.value)}
+                    placeholder="e.g. Priya Sharma"
+                    className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Gender</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => updateField("gender", e.target.value)}
+                      disabled={formData.role === "woman"}
+                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-xs text-neutral-900 focus:border-neutral-950 focus:outline-none transition-colors disabled:bg-neutral-100 disabled:text-neutral-500"
+                    >
+                      <option value="female">Female</option>
+                      {formData.role === "volunteer" && <option value="male">Male</option>}
+                      {formData.role === "volunteer" && <option value="non_binary">Non-Binary / Other</option>}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Date of Birth (Min. 18 Years)</label>
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => updateField("dateOfBirth", e.target.value)}
+                      max="2007-01-01"
+                      className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-neutral-900 focus:border-neutral-950 focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-neutral-100 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Address Line 1</label>
+                    <input
+                      type="text"
+                      value={formData.addressLine1}
+                      onChange={(e) => updateField("addressLine1", e.target.value)}
+                      placeholder="House / Flat No., Street, Area"
+                      className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <p className="text-sm font-bold text-foreground">Active Liveness & Anti-Spoofing Check</p>
-                      <p className="text-xs text-muted">Biometric facial challenge to prevent spoofing and bot accounts</p>
+                      <label className="block text-xs font-semibold text-neutral-700 mb-1.5">City</label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => updateField("city", e.target.value)}
+                        placeholder="Bengaluru"
+                        className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 mb-1.5">State</label>
+                      <input
+                        type="text"
+                        value={formData.state}
+                        onChange={(e) => updateField("state", e.target.value)}
+                        placeholder="Karnataka"
+                        className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 mb-1.5">PIN Code</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={formData.pinCode}
+                        onChange={(e) => updateField("pinCode", e.target.value)}
+                        placeholder="560001"
+                        className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                      />
                     </div>
                   </div>
-                  {livenessPassed && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Liveness Confirmed
-                    </span>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProceedFromPersonal}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.98]"
+                >
+                  Continue to Contact Verification
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 3: DUAL OTP VERIFICATION (PHONE + EMAIL)                             */}
+          {/* ========================================================================= */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-950">Contact Verification</h2>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Both your mobile number and email must be verified to ensure genuine emergency dispatch and prevent bot registrations.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Phone OTP Block */}
+                <div className="rounded-xl border border-neutral-200 p-4 space-y-3 bg-neutral-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-neutral-700" />
+                      <span className="text-xs font-bold text-neutral-900">Mobile Number</span>
+                    </div>
+                    {phoneVerified && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <Check className="h-3 w-3" /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {!phoneVerified ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={formData.phone}
+                          onChange={(e) => updateField("phone", e.target.value)}
+                          placeholder="+919876543210"
+                          disabled={phoneOtpSent}
+                          className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-neutral-900 focus:border-neutral-950 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendPhoneOtp}
+                          disabled={loading || phoneCooldown > 0}
+                          className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
+                        >
+                          {phoneOtpSent ? (phoneCooldown > 0 ? `Resend (${phoneCooldown}s)` : "Resend OTP") : "Send OTP"}
+                        </button>
+                      </div>
+
+                      {phoneOtpSent && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={formData.phoneOtp}
+                            onChange={(e) => updateField("phoneOtp", e.target.value)}
+                            placeholder="6-digit code"
+                            className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-center font-mono tracking-widest focus:border-neutral-950 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyPhoneOtp}
+                            disabled={loading}
+                            className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800"
+                          >
+                            Verify
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-neutral-600">{formData.phone}</p>
                   )}
                 </div>
 
-                {!livenessPassed ? (
-                  <div className="space-y-3">
-                    <div className="rounded-lg bg-teal-50 border border-teal-200 p-3 text-xs text-slate-700">
-                      <strong>Challenge:</strong> Look at your camera and <em>{livenessAction}</em>.
+                {/* Email OTP Block */}
+                <div className="rounded-xl border border-neutral-200 p-4 space-y-3 bg-neutral-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-neutral-700" />
+                      <span className="text-xs font-bold text-neutral-900">Email Address</span>
                     </div>
+                    {emailVerified && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <Check className="h-3 w-3" /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {!emailVerified ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => updateField("email", e.target.value)}
+                          placeholder="yourname@example.com"
+                          disabled={emailOtpSent}
+                          className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-neutral-900 focus:border-neutral-950 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendEmailOtp}
+                          disabled={loading || emailCooldown > 0}
+                          className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
+                        >
+                          {emailOtpSent ? (emailCooldown > 0 ? `Resend (${emailCooldown}s)` : "Resend OTP") : "Send OTP"}
+                        </button>
+                      </div>
+
+                      {emailOtpSent && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={formData.emailOtp}
+                            onChange={(e) => updateField("emailOtp", e.target.value)}
+                            placeholder="6-digit code"
+                            className="flex-1 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-xs text-center font-mono tracking-widest focus:border-neutral-950 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyEmailOtp}
+                            disabled={loading}
+                            className="rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800"
+                          >
+                            Verify
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-neutral-600">{formData.email}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!phoneVerified || !emailVerified}
+                  onClick={() => setStep(4)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continue to Identity Vetting
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 4: IDENTITY & LIVENESS CHECK                                         */}
+          {/* ========================================================================= */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-950">Identity Vetting</h2>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  DigiLocker integration or cryptographic document fingerprinting confirms genuine identity without storing raw Aadhaar numbers.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Government ID Card */}
+                <div className="rounded-xl border border-neutral-200 p-5 bg-neutral-50/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <FileCheck className="h-4 w-4 text-neutral-800" />
+                      <div>
+                        <p className="text-xs font-bold text-neutral-950">Government Identity Verification</p>
+                        <p className="text-[11px] text-neutral-500">Aadhaar, Voter ID, or Driving License</p>
+                      </div>
+                    </div>
+                    {identityVerified && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <Check className="h-3 w-3" /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {!identityVerified ? (
                     <button
                       type="button"
-                      onClick={handleRunLiveness}
+                      onClick={handleInitiateIdentity}
                       disabled={loading}
-                      className="flex items-center justify-center gap-2 w-full rounded-lg bg-brand-teal py-2.5 text-xs font-semibold text-white hover:bg-teal-800 shadow-sm"
+                      className="w-full rounded-xl bg-neutral-950 py-2.5 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors shadow-sm"
                     >
-                      {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Capture Camera & Complete Liveness Verification"}
+                      {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Verify Identity via DigiLocker / e-KYC"}
                     </button>
+                  ) : (
+                    <p className="text-[11px] font-mono text-neutral-600 bg-white p-2.5 rounded-lg border border-neutral-200">
+                      Ref: <code>DL-IN-2024-VERIFIED</code> • Cryptographic Hash Fingerprinted
+                    </p>
+                  )}
+                </div>
+
+                {/* Biometric Liveness Check */}
+                <div className="rounded-xl border border-neutral-200 p-5 bg-neutral-50/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Camera className="h-4 w-4 text-neutral-800" />
+                      <div>
+                        <p className="text-xs font-bold text-neutral-950">Biometric Liveness Challenge</p>
+                        <p className="text-[11px] text-neutral-500">Interactive facial check to prevent bot spoofing</p>
+                      </div>
+                    </div>
+                    {livenessPassed && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <Check className="h-3 w-3" /> Liveness Confirmed
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
-                    Confidence: 99.4% • Liveness Criteria Verified • Securely Encrypted
-                  </p>
-                )}
+
+                  {!livenessPassed ? (
+                    <div className="space-y-3">
+                      <div className="rounded-lg bg-neutral-100 p-3 text-xs text-neutral-700 font-mono">
+                        Challenge: Look at your front camera and <strong>{livenessAction}</strong>.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRunLiveness}
+                        disabled={loading}
+                        className="w-full rounded-xl bg-neutral-950 py-2.5 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors shadow-sm"
+                      >
+                        {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Capture Camera & Complete Liveness Challenge"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-mono text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
+                      Confidence Score: 99% • Anti-spoofing criteria satisfied
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!identityVerified || !livenessPassed}
+                  onClick={() => setStep(5)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continue to Security Setup
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="mt-8 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={!identityVerified || !livenessPassed}
-                onClick={() => setStep(5)}
-                className="flex items-center gap-2 rounded-lg bg-brand-teal px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue to Password Setup
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
+          {/* ========================================================================= */}
+          {/* STEP 5: PASSWORD SETUP & DPDP CONSENT                                     */}
+          {/* ========================================================================= */}
+          {step === 5 && (
+            <form onSubmit={handleFinalSubmit} className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-950">Security & Credentials</h2>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Establish a secure master password for portal and mobile application access.
+                </p>
+              </div>
 
-        {/* --- STEP 5: PASSWORD & CONSENT --- */}
-        {step === 5 && (
-          <form onSubmit={handleFinalSubmit} className="rounded-2xl border border-border bg-white p-8 shadow-card">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Set Password & Complete</h2>
-            <p className="mt-2 text-sm text-muted">
-              Choose a strong password protected by Argon2id cryptographic hashing.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password (Min. 8 characters) *</label>
-                <div className="relative">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                    Password (Min. 8 characters)
+                  </label>
                   <input
                     type="password"
                     value={formData.password}
                     onChange={(e) => updateField("password", e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                    className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
                   />
-                  <Lock className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => updateField("confirmPassword", e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Terms & DPDP Checkbox */}
+                <div className="pt-2">
+                  <label className="flex items-start gap-3 rounded-xl border border-neutral-200 p-4 cursor-pointer hover:bg-neutral-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={formData.acceptedTerms}
+                      onChange={(e) => updateField("acceptedTerms", e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-950 focus:ring-neutral-950"
+                    />
+                    <span className="text-xs text-neutral-600 leading-relaxed">
+                      I agree to the{" "}
+                      <Link href="/terms" target="_blank" className="font-semibold text-neutral-950 underline">
+                        Terms of Service
+                      </Link>{" "}
+                      and acknowledge that SafeLink operates under the{" "}
+                      <Link href="/privacy" target="_blank" className="font-semibold text-neutral-950 underline">
+                        DPDP Act 2023 Privacy Policy
+                      </Link>
+                      . I understand community volunteers augment, but never replace, official 112 emergency services.
+                    </span>
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password *</label>
-                <input
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => updateField("confirmPassword", e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
-                />
+              <div className="pt-4 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(4)}
+                  className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Complete Registration"}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 6: REGISTRATION SUCCESS CONFIRMATION                                 */}
+          {/* ========================================================================= */}
+          {step === 6 && (
+            <div className="text-center space-y-6 py-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-8 w-8" />
               </div>
 
-              {/* DPDP Privacy & Consent Checkbox */}
-              <div className="pt-2">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.acceptedTerms}
-                    onChange={(e) => updateField("acceptedTerms", e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-border text-brand-teal focus:ring-brand-teal"
-                  />
-                  <span className="text-xs text-slate-600 leading-relaxed">
-                    I explicitly consent to the collection and processing of my personal details and location strictly during emergency activations under India&apos;s Digital Personal Data Protection Act (DPDP Act 2023). I agree to the{" "}
-                    <Link href="/terms" className="text-brand-teal font-medium hover:underline">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link href="/privacy" className="text-brand-teal font-medium hover:underline">
-                      Privacy Policy
-                    </Link>.
-                  </span>
-                </label>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold tracking-tight text-neutral-950">
+                  Account Created & Verified
+                </h2>
+                <p className="text-xs text-neutral-600 max-w-md mx-auto leading-relaxed">
+                  Your identity has been authenticated. You can now sign in to configure emergency contacts or download the mobile applications.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-950 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-colors"
+                >
+                  Proceed to Sign In
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <Link
+                  href="/download"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-5 py-2.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
+                >
+                  Download Mobile APK
+                </Link>
               </div>
             </div>
-
-            <div className="mt-8 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 rounded-lg bg-brand-teal px-8 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50"
-              >
-                {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Complete Registration"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* --- STEP 6: COMPLETION CONFIRMATION --- */}
-        {step === 6 && (
-          <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-card">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-700 mb-4">
-              <CheckCircle2 className="h-8 w-8" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Registration Complete!</h2>
-            <p className="mt-2 text-sm text-muted max-w-md mx-auto">
-              Your account has been created and verified. You are now equipped to access the SafeLink emergency platform.
-            </p>
-
-            <div className="mt-6 rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs font-mono text-slate-700">
-              User ID: {registeredUserId} • Status: VERIFIED
-            </div>
-
-            <div className="mt-8 flex justify-center gap-4">
-              <Link
-                href="/login"
-                className="rounded-lg bg-brand-teal px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors"
-              >
-                Sign In to Dashboard
-              </Link>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );

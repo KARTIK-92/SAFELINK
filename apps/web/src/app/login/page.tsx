@@ -4,8 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ShieldCheck, Lock, Phone, Mail, KeyRound,
-  ArrowRight, AlertCircle, RefreshCw
+  ShieldCheck, Lock, ArrowRight, AlertCircle, RefreshCw, KeyRound, Mail, Smartphone
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -28,7 +27,7 @@ export default function LoginPage() {
 
   const handleSendOtp = async () => {
     if (!identifier.trim()) {
-      setError("Please enter your registered phone number or email address.");
+      setError("Please enter your registered mobile number or email address.");
       return;
     }
     setLoading(true);
@@ -62,7 +61,7 @@ export default function LoginPage() {
       return;
     }
     if (authMode === "password" && !password) {
-      setError("Please enter your password.");
+      setError("Please enter your account password.");
       return;
     }
     if (authMode === "otp" && (!otpCode || otpCode.length !== 6)) {
@@ -114,20 +113,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-neutral-50 text-neutral-900">
       {/* Top Header */}
-      <header className="border-b border-border bg-white py-4">
+      <header className="border-b border-neutral-200 bg-white py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-navyDark text-white shadow-sm">
-              <ShieldCheck className="h-5 w-5 text-brand-tealLight" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-950 text-white shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">SafeLink</span>
+            <span className="text-base font-bold tracking-tight text-neutral-950">SafeLink</span>
           </Link>
-          <div className="text-xs text-muted">
-            New to SafeLink?{" "}
-            <Link href="/register" className="font-semibold text-brand-teal hover:underline">
-              Register Account
+          <div className="text-xs text-neutral-500">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-semibold text-neutral-950 hover:underline">
+              Register here
             </Link>
           </div>
         </div>
@@ -135,26 +134,28 @@ export default function LoginPage() {
 
       {/* Login Box */}
       <main className="mx-auto my-auto w-full max-w-md px-6 py-12">
-        <div className="rounded-2xl border border-border bg-white p-8 shadow-card">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign In to SafeLink</h1>
-            <p className="mt-1.5 text-xs text-muted">
-              Secure access to emergency protection and responder dashboard.
+        <div className="rounded-2xl border border-neutral-200 bg-white p-7 sm:p-9 shadow-sm space-y-6">
+          <div className="space-y-1.5 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight text-neutral-950">
+              Sign In to SafeLink
+            </h1>
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              Access your emergency protection status or responder dashboard.
             </p>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex rounded-lg bg-slate-100 p-1 mb-6">
+          {/* Segmented Control */}
+          <div className="flex rounded-lg border border-neutral-200 bg-neutral-100 p-1 text-xs font-medium">
             <button
               type="button"
               onClick={() => {
                 setAuthMode("password");
                 setError(null);
               }}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+              className={`flex-1 rounded-md py-1.5 transition-all ${
                 authMode === "password"
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted hover:text-foreground"
+                  ? "bg-white text-neutral-950 shadow-sm font-semibold"
+                  : "text-neutral-600 hover:text-neutral-950"
               }`}
             >
               Password
@@ -165,10 +166,10 @@ export default function LoginPage() {
                 setAuthMode("otp");
                 setError(null);
               }}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+              className={`flex-1 rounded-md py-1.5 transition-all ${
                 authMode === "otp"
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted hover:text-foreground"
+                  ? "bg-white text-neutral-950 shadow-sm font-semibold"
+                  : "text-neutral-600 hover:text-neutral-950"
               }`}
             >
               One-Time Passcode (OTP)
@@ -177,33 +178,33 @@ export default function LoginPage() {
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-800">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
-              <span>{error}</span>
+            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Registered Mobile Number or Email
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Registered Phone or Email
               </label>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="+919876543210 or name@example.com"
-                className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                placeholder="+919876543210 or yourname@example.com"
+                className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
               />
             </div>
 
             {authMode === "password" ? (
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700">Password</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-neutral-700">Password</label>
                   <Link
                     href="/forgot-password"
-                    className="text-xs text-brand-teal hover:underline font-medium"
+                    className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -214,9 +215,9 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none"
+                    className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors"
                   />
-                  <Lock className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute right-3.5 top-3 h-3.5 w-3.5 text-neutral-400" />
                 </div>
               </div>
             ) : (
@@ -226,19 +227,19 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={loading}
-                    className="w-full rounded-lg bg-brand-navy py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-100 transition-colors shadow-sm disabled:opacity-50"
                   >
-                    {loading ? <RefreshCw className="h-4 w-4 animate-spin mx-auto" /> : "Request Login Code"}
+                    {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Dispatch Verification Code"}
                   </button>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs text-brand-teal border border-teal-200">
-                      <ShieldCheck className="h-4 w-4 shrink-0 text-brand-teal" />
-                      <span>A 6-digit verification code has been dispatched to your contact.</span>
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs text-emerald-800 border border-emerald-200">
+                      <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>6-digit verification code sent to your contact.</span>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Enter 6-Digit Code
+                      <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                        Enter 6-Digit Passcode
                       </label>
                       <input
                         type="text"
@@ -246,7 +247,7 @@ export default function LoginPage() {
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value)}
                         placeholder="123456"
-                        className="w-full rounded-lg border border-border px-3.5 py-2.5 text-center font-mono tracking-widest text-sm focus:border-brand-teal focus:outline-none"
+                        className="w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-center font-mono tracking-widest text-sm focus:border-neutral-950 focus:outline-none transition-colors"
                       />
                     </div>
                   </>
@@ -257,22 +258,22 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || (authMode === "otp" && !otpSent)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-teal py-3 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 transition-colors disabled:opacity-50 mt-4"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 py-3 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition-all active:scale-[0.99] disabled:opacity-50 mt-2"
             >
               {loading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
                 <>
                   Sign In
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-6 border-t border-border pt-4 text-center">
-            <p className="text-xs text-muted">
-              Protected by Argon2id cryptographic hashing & automated lockout protocols.
+          <div className="border-t border-neutral-100 pt-4 text-center">
+            <p className="text-[11px] text-neutral-400 leading-relaxed font-mono">
+              Protected by Argon2id cryptographic hashing • DPDP Compliant
             </p>
           </div>
         </div>

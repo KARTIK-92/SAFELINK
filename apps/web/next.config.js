@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  optimizeFonts: false,
   images: {
     domains: ['localhost'],
   },

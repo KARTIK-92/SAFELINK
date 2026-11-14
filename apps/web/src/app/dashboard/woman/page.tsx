@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ShieldCheck, AlertCircle, CheckCircle2, UserPlus, Trash2,
-  Edit2, Phone, Mail, Lock, Smartphone, LogOut,
-  Download, QrCode, ShieldAlert, Sparkles, RefreshCw, X, Radio
+  Phone, Mail, Smartphone, LogOut, ShieldAlert, RefreshCw, X,
+  ExternalLink, Key, Clock, MapPin, HeartHandshake, Download
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
@@ -98,53 +98,62 @@ export default function WomenDashboardPage() {
     setActionLoading(true);
     setError(null);
     try {
-      await apiRequest("/contacts", {
+      const newContact = await apiRequest<EmergencyContact>("/contacts", {
         method: "POST",
         body: JSON.stringify({
           name: contactName.trim(),
           relationship: contactRelationship.trim(),
           phone: contactPhone.trim(),
-          email: contactEmail.trim() || undefined,
+          email: contactEmail.trim() || null,
           preferred_channels: preferredChannels,
+          priority_order: contacts.length + 1,
         }),
       });
 
+      setContacts([...contacts, newContact]);
       setShowAddModal(false);
       setContactName("");
       setContactRelationship("");
       setContactPhone("");
       setContactEmail("");
-      setSuccessMsg("Emergency contact added successfully! Onboarding notice dispatched.");
-      await loadDashboardData();
+      setPreferredChannels(["sms", "whatsapp"]);
+      setSuccessMsg(`Emergency contact ${newContact.name} saved successfully.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
-      setError(err.message || "Failed to add emergency contact.");
+      setError(err.message || "Failed to save emergency contact.");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeleteContact = async (contactId: string) => {
-    if (!confirm("Are you sure you want to remove this emergency contact?")) return;
+    if (!window.confirm("Remove this trusted contact from your emergency broadcast list?")) {
+      return;
+    }
+    setError(null);
     try {
-      await apiRequest(`/contacts/${contactId}`, { method: "DELETE" });
-      setSuccessMsg("Contact removed.");
-      await loadDashboardData();
+      await apiRequest(`/contacts/${contactId}`, {
+        method: "DELETE",
+      });
+      setContacts(contacts.filter((c) => c.id !== contactId));
+      setSuccessMsg("Contact removed from emergency broadcast registry.");
+      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
-      setError(err.message || "Failed to delete contact.");
+      setError(err.message || "Failed to delete emergency contact.");
     }
   };
 
   const handleDeleteAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmDelete || !deletePassword) {
-      setError("Please provide password and check the confirmation box.");
+      setError("Please check the confirmation box and enter your password.");
       return;
     }
     setActionLoading(true);
     setError(null);
     try {
-      await apiRequest("/users/me", {
-        method: "DELETE",
+      await apiRequest("/users/me/delete", {
+        method: "POST",
         body: JSON.stringify({
           password: deletePassword,
           confirmation: true,
@@ -184,37 +193,39 @@ export default function WomenDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted text-sm font-medium">
-          <RefreshCw className="h-5 w-5 animate-spin text-brand-teal" />
-          Loading SafeLink Protection Dashboard...
+      <div className="flex min-h-screen items-center justify-center bg-surface-50">
+        <div className="flex items-center gap-3 text-surface-600 text-sm font-medium">
+          <RefreshCw className="h-4 w-4 animate-spin text-surface-900" />
+          Loading SafeLink Command Portal...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-surface-50 flex flex-col text-surface-900 antialiased selection:bg-surface-200">
       {/* Top Navbar */}
-      <header className="border-b border-border bg-white sticky top-0 z-40">
+      <header className="border-b border-surface-200 bg-white sticky top-0 z-40">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-navyDark text-white">
-              <ShieldCheck className="h-5 w-5 text-brand-tealLight" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">SafeLink</span>
-            <span className="hidden sm:inline rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-brand-teal border border-teal-200 ml-2">
-              Women&apos;s Portal
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-surface-950 text-white">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <span className="text-base font-semibold tracking-tight text-surface-950">SafeLink</span>
+            </Link>
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-surface-100 px-2.5 py-0.5 text-xs font-medium text-surface-700">
+              Women&apos;s Safety Portal
             </span>
-          </Link>
+          </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-xs text-muted hidden sm:inline">
-              Welcome, <strong>{user?.profile?.full_legal_name || user?.email}</strong>
+            <span className="text-xs text-surface-500 hidden sm:inline">
+              Signed in as <strong className="text-surface-900 font-semibold">{user?.profile?.full_legal_name || user?.email}</strong>
             </span>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 px-3 py-1.5 text-xs font-medium text-surface-700 hover:bg-surface-100 active:scale-[0.98] transition"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign Out
@@ -224,92 +235,96 @@ export default function WomenDashboardPage() {
       </header>
 
       {/* Main Dashboard Content */}
-      <main className="mx-auto my-8 w-full max-w-6xl px-6 flex-1 space-y-8">
+      <main className="mx-auto my-8 w-full max-w-6xl px-6 flex-1 space-y-6">
         {/* Alerts Banner */}
         {error && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/60 p-4 text-xs text-rose-900">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 p-4 text-xs text-green-800">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs text-emerald-900">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
             <span>{successMsg}</span>
           </div>
         )}
 
-        {/* Protection Status Card */}
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
+        {/* Protection Status Banner */}
+        <div className="rounded-2xl border border-surface-200 bg-white p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-3 w-3 rounded-full bg-green-500" />
-              <h2 className="text-lg font-bold text-foreground">Distress Protection Ready</h2>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
-                {user?.status?.toUpperCase()}
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-surface-500">Protection Status</h2>
+              <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                ACTIVE &bull; READY
               </span>
             </div>
-            <p className="mt-1.5 text-xs text-muted max-w-xl leading-relaxed">
-              In an emergency, one tap on the mobile app instantly broadcasts encrypted live tracking links to your registered emergency contacts and dispatches verified community volunteers within 1 km.
+            <p className="text-lg font-semibold tracking-tight text-surface-950 pt-1">
+              Rapid SOS Dispatch & Encrypted Radar Active
+            </p>
+            <p className="text-xs text-surface-500 max-w-2xl leading-relaxed">
+              When triggered from your mobile device, SafeLink instantly dispatches verified community volunteers within 1 km, dials Emergency 112, and sends tamper-proof live tracking links to your registered emergency contacts.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/download"
-              className="flex items-center gap-2 rounded-lg bg-brand-navy px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 shadow-sm transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-surface-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-surface-800 active:scale-[0.98] transition shadow-xs"
             >
               <Smartphone className="h-4 w-4" />
-              Get Women&apos;s Mobile App
+              Download Mobile App
             </Link>
           </div>
         </div>
 
         {/* Emergency Contacts Management Section */}
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-card">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-4 mb-6">
+        <div className="rounded-2xl border border-surface-200 bg-white p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-surface-200 pb-4 mb-6">
             <div>
-              <h3 className="text-base font-bold text-foreground">Registered Emergency Contacts</h3>
-              <p className="text-xs text-muted mt-0.5">
-                Up to three trusted contacts notified with secure live-tracking links during SOS.
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold tracking-tight text-surface-950">Emergency Contact Broadcast Registry</h3>
+                <span className="rounded-full bg-surface-100 px-2 py-0.5 text-[11px] font-medium text-surface-600">
+                  {contacts.length} of 3 Registered
+                </span>
+              </div>
+              <p className="text-xs text-surface-500 mt-1">
+                These contacts receive an automated SMS, WhatsApp, and live-tracking link the second an SOS is initiated.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                {contacts.length} / 3 Contacts Registered
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (contacts.length >= 3) {
-                    setError("Maximum limit of 3 emergency contacts reached.");
-                    return;
-                  }
-                  setShowAddModal(true);
-                  setError(null);
-                }}
-                disabled={contacts.length >= 3}
-                className="flex items-center gap-1.5 rounded-lg bg-brand-teal px-3.5 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
-              >
-                <UserPlus className="h-4 w-4" />
-                Add Contact
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (contacts.length >= 3) {
+                  setError("Maximum limit of 3 emergency contacts reached.");
+                  return;
+                }
+                setShowAddModal(true);
+                setError(null);
+              }}
+              disabled={contacts.length >= 3}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-surface-950 px-3.5 py-2 text-xs font-semibold text-white hover:bg-surface-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition shadow-xs"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Add Contact
+            </button>
           </div>
 
           {contacts.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-              <ShieldAlert className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-foreground">No Emergency Contacts Registered</p>
-              <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-                Add up to 3 family members or friends. During an emergency, they receive immediate location updates via SMS, WhatsApp, and Email.
+            <div className="text-center py-12 border border-dashed border-surface-300 rounded-xl bg-surface-50/50">
+              <ShieldAlert className="h-8 w-8 text-surface-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-surface-900">No Emergency Contacts Registered</p>
+              <p className="text-xs text-surface-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                Add up to 3 trusted family members or friends. During an emergency, they will receive real-time location telemetry with zero lock-screen delays.
               </p>
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="mt-4 rounded-lg bg-brand-teal px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-800"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-surface-950 px-4 py-2 text-xs font-semibold text-white hover:bg-surface-800 active:scale-[0.98] transition"
               >
+                <UserPlus className="h-3.5 w-3.5" />
                 Add Primary Contact
               </button>
             </div>
@@ -318,42 +333,46 @@ export default function WomenDashboardPage() {
               {contacts.map((contact, idx) => (
                 <div
                   key={contact.id}
-                  className="rounded-xl border border-border bg-slate-50/50 p-5 flex flex-col justify-between"
+                  className="rounded-xl border border-surface-200 bg-surface-50/40 p-5 flex flex-col justify-between hover:border-surface-300 transition"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="rounded bg-teal-100 text-brand-teal px-2 py-0.5 text-[10px] font-bold uppercase">
-                        Priority {idx + 1}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-md bg-white border border-surface-200 text-surface-700 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                        Priority #{idx + 1}
                       </span>
                       <button
                         onClick={() => handleDeleteContact(contact.id)}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        className="text-surface-400 hover:text-rose-600 transition p-1"
                         title="Remove contact"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <h4 className="text-sm font-bold text-foreground">{contact.name}</h4>
-                    <p className="text-xs font-medium text-slate-600">{contact.relationship}</p>
-                    <div className="mt-3 space-y-1 text-xs text-muted">
-                      <div className="flex items-center gap-1.5 font-mono">
-                        <Phone className="h-3 w-3 text-slate-400" />
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-surface-950">{contact.name}</h4>
+                      <p className="text-xs text-surface-500">{contact.relationship}</p>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-surface-600">
+                      <div className="flex items-center gap-2 font-mono">
+                        <Phone className="h-3.5 w-3.5 text-surface-400 shrink-0" />
                         <span>{contact.phone}</span>
                       </div>
                       {contact.email && (
-                        <div className="flex items-center gap-1.5 truncate">
-                          <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-2 truncate">
+                          <Mail className="h-3.5 w-3.5 text-surface-400 shrink-0" />
                           <span className="truncate">{contact.email}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-200 flex flex-wrap gap-1.5">
+                  <div className="mt-4 pt-3 border-t border-surface-200/80 flex flex-wrap gap-1.5">
                     {contact.preferred_channels.map((ch) => (
                       <span
                         key={ch}
-                        className="rounded bg-white border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 uppercase"
+                        className="rounded bg-white border border-surface-200 px-2 py-0.5 text-[10px] font-mono font-medium text-surface-600 uppercase"
                       >
                         {ch}
                       </span>
@@ -365,119 +384,140 @@ export default function WomenDashboardPage() {
           )}
         </div>
 
-        {/* Account Settings & Deletion Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Account Settings */}
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-card space-y-4">
-            <h3 className="text-base font-bold text-foreground border-b border-border pb-3">Account Security</h3>
-            <div className="text-xs space-y-3 text-slate-700">
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-muted">Registered Phone:</span>
-                <span className="font-mono font-medium">{user?.phone}</span>
+        {/* Security & DPDP Compliance Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Account Security */}
+          <div className="rounded-2xl border border-surface-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="border-b border-surface-200 pb-3">
+              <h3 className="text-sm font-semibold tracking-tight text-surface-950">Account Security & Credentials</h3>
+              <p className="text-xs text-surface-500 mt-0.5">Argon2id hashing & ephemeral session control</p>
+            </div>
+
+            <div className="text-xs space-y-2.5 text-surface-700 divide-y divide-surface-100">
+              <div className="flex justify-between py-1.5">
+                <span className="text-surface-500">Registered Phone:</span>
+                <span className="font-mono font-medium text-surface-900">{user?.phone}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-muted">Registered Email:</span>
-                <span className="font-medium">{user?.email}</span>
+              <div className="flex justify-between py-1.5">
+                <span className="text-surface-500">Registered Email:</span>
+                <span className="font-medium text-surface-900">{user?.email}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-muted">Password Security:</span>
-                <span className="font-medium">Argon2id Encrypted</span>
+              <div className="flex justify-between py-1.5">
+                <span className="text-surface-500">Cryptographic Standard:</span>
+                <span className="font-mono text-[11px] text-surface-700">Argon2id (RFC 9106)</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-surface-500">Account Role:</span>
+                <span className="font-medium capitalize text-surface-900">{user?.role}</span>
               </div>
             </div>
 
             <div className="pt-2 flex flex-wrap gap-2">
               <Link
                 href="/forgot-password"
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 px-3 py-1.5 text-xs font-semibold text-surface-700 hover:bg-surface-50 active:scale-[0.98] transition"
               >
+                <Key className="h-3 w-3" />
                 Change Password
               </Link>
             </div>
           </div>
 
-          {/* Account Deletion */}
-          <div className="rounded-2xl border border-red-200 bg-red-50/30 p-6 shadow-card space-y-4">
-            <h3 className="text-base font-bold text-red-900 border-b border-red-200 pb-3">Account Deletion (DPDP Act)</h3>
-            <p className="text-xs text-red-800 leading-relaxed">
-              Permanent erasure removes all personal details, registered emergency contacts, stored identity records, and active tracking tokens under India&apos;s DPDP Act.
+          {/* Account Deletion / DPDP Act */}
+          <div className="rounded-2xl border border-surface-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="border-b border-surface-200 pb-3">
+              <h3 className="text-sm font-semibold tracking-tight text-rose-950">DPDP Act &bull; Permanent Data Erasure</h3>
+              <p className="text-xs text-surface-500 mt-0.5">Exercise your right to be forgotten under Indian law</p>
+            </div>
+            <p className="text-xs text-surface-600 leading-relaxed">
+              In strict accordance with the Digital Personal Data Protection (DPDP) Act 2023, you can permanently erase all personal identifiers, telemetry logs, and emergency contact mappings at any time.
             </p>
-            <button
-              type="button"
-              onClick={() => setShowDeleteAccountModal(true)}
-              className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 shadow-sm"
-            >
-              Initiate Permanent Deletion
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:text-rose-800 active:scale-[0.98] transition"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Request Permanent Erasure
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
       {/* --- ADD CONTACT MODAL --- */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
-              <h3 className="text-base font-bold text-foreground">Add Emergency Contact</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-5 w-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-surface-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-surface-200 pb-3 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-surface-950">Add Trusted Emergency Contact</h3>
+                <p className="text-xs text-surface-500">Will receive immediate SMS & live telemetry during distress</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="text-surface-400 hover:text-surface-600 p-1">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={handleCreateContact} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                <label className="block font-semibold text-surface-700 mb-1">Full Legal Name *</label>
                 <input
                   type="text"
+                  required
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  placeholder="e.g. Geeta Verma"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+                  placeholder="e.g. Ananya Sharma"
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-xs focus:border-surface-900 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Relationship *</label>
+                <label className="block font-semibold text-surface-700 mb-1">Relationship *</label>
                 <input
                   type="text"
+                  required
                   value={contactRelationship}
                   onChange={(e) => setContactRelationship(e.target.value)}
-                  placeholder="e.g. Mother, Sister, Friend, Spouse"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+                  placeholder="e.g. Mother, Sister, Spouse, Colleague"
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-xs focus:border-surface-900 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mobile Phone (with country code) *</label>
+                <label className="block font-semibold text-surface-700 mb-1">Mobile Phone (with country code) *</label>
                 <input
                   type="tel"
+                  required
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="+919876543210"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm font-mono focus:border-brand-teal focus:outline-none"
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-xs font-mono focus:border-surface-900 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Email Address (Optional)</label>
+                <label className="block font-semibold text-surface-700 mb-1">Email Address (Optional)</label>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="geeta@example.com"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+                  placeholder="contact@example.com"
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-xs focus:border-surface-900 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">Notification Channels *</label>
+                <label className="block font-semibold text-surface-700 mb-2">Notification Channels *</label>
                 <div className="flex gap-4">
                   {["sms", "whatsapp", "email"].map((ch) => (
-                    <label key={ch} className="flex items-center gap-1.5 cursor-pointer uppercase font-semibold">
+                    <label key={ch} className="inline-flex items-center gap-1.5 cursor-pointer uppercase font-mono text-[11px] text-surface-700">
                       <input
                         type="checkbox"
                         checked={preferredChannels.includes(ch)}
                         onChange={() => toggleChannel(ch)}
-                        className="rounded border-border text-brand-teal focus:ring-brand-teal"
+                        className="rounded border-surface-300 text-surface-900 focus:ring-0"
                       />
                       <span>{ch}</span>
                     </label>
@@ -485,20 +525,20 @@ export default function WomenDashboardPage() {
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end gap-2 border-t border-border">
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-200">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-lg border border-border px-4 py-2 font-medium text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-surface-200 px-4 py-2 font-medium text-surface-600 hover:bg-surface-50 text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-brand-teal px-5 py-2 font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-surface-950 px-4 py-2 font-semibold text-white hover:bg-surface-800 disabled:opacity-50 text-xs shadow-xs"
                 >
-                  {actionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Save & Notify Contact"}
+                  {actionLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save & Verify Contact"}
                 </button>
               </div>
             </form>
@@ -508,22 +548,23 @@ export default function WomenDashboardPage() {
 
       {/* --- DELETE ACCOUNT MODAL --- */}
       {showDeleteAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-xl">
-            <h3 className="text-base font-bold text-red-900 mb-2">Confirm Account Deletion</h3>
-            <p className="text-xs text-red-800 mb-4">
-              Please enter your password to confirm permanent erasure of your SafeLink account. This action cannot be reversed.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95">
+            <h3 className="text-sm font-semibold text-rose-950 mb-1">Confirm Permanent Account Erasure</h3>
+            <p className="text-xs text-rose-800/80 mb-4 leading-relaxed">
+              Please enter your password to confirm irrevocable purging of your account, telemetry records, and emergency contact mappings under DPDP Act 2023.
             </p>
 
             <form onSubmit={handleDeleteAccount} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                <label className="block font-semibold text-surface-700 mb-1">Confirm Account Password *</label>
                 <input
                   type="password"
+                  required
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                  className="w-full rounded-lg border border-surface-300 px-3 py-2 text-xs focus:border-rose-500 focus:outline-hidden"
                 />
               </div>
 
@@ -532,27 +573,27 @@ export default function WomenDashboardPage() {
                   type="checkbox"
                   checked={confirmDelete}
                   onChange={(e) => setConfirmDelete(e.target.checked)}
-                  className="mt-0.5 rounded border-red-300 text-red-600 focus:ring-red-500"
+                  className="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-0"
                 />
-                <span className="text-red-900 font-medium">
-                  I understand that my emergency protection will cease immediately and all personal data will be purged.
+                <span className="text-surface-700 text-xs leading-relaxed">
+                  I understand that emergency SOS protection and volunteer dispatch will cease immediately.
                 </span>
               </label>
 
-              <div className="pt-4 flex justify-end gap-2 border-t border-border">
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-200">
                 <button
                   type="button"
                   onClick={() => setShowDeleteAccountModal(false)}
-                  className="rounded-lg border border-border px-4 py-2 font-medium text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-surface-200 px-4 py-2 font-medium text-surface-600 hover:bg-surface-50 text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || !confirmDelete || !deletePassword}
-                  className="rounded-lg bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white hover:bg-rose-700 disabled:opacity-50 text-xs shadow-xs"
                 >
-                  {actionLoading ? "Deleting..." : "Permanently Delete Account"}
+                  {actionLoading ? "Processing..." : "Permanently Delete Data"}
                 </button>
               </div>
             </form>
