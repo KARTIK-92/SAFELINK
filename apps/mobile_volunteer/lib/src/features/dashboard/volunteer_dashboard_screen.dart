@@ -205,7 +205,7 @@ class VolunteerDashboardScreen extends ConsumerWidget {
 
               // Candidate Incidents Heading
               Row(
-                mainAxisAlignment: MainAxisAlignment.between,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Nearby Emergency Dispatches',
@@ -314,7 +314,7 @@ class VolunteerDashboardScreen extends ConsumerWidget {
                                   onPressed: () => volunteerNotifier.declineIncident(incidentId),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.slateNeutral,
-                                    side: const Border.all(color: Color(0xFFCBD5E1)),
+                                    side: const BorderSide(color: Color(0xFFCBD5E1)),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   ),
                                   child: const Text('DECLINE'),

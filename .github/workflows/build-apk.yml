@@ -75,6 +75,13 @@ jobs:
           name: build-log
           path: build.log
 
+      - name: Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: safelink-android-apks
+          path: dist-apks/*.apk
+          retention-days: 30
+
       - name: Deploy Compiled Real APKs to Web Downloads
         run: |
           echo "=== Web Downloads Directory ==="
@@ -87,11 +94,4 @@ jobs:
           git add -f apps/web/public/downloads/*.apk
           git status
           git commit -m "chore(release): deploy real compiled Android APKs to web downloads [skip ci]" || echo "No changes to commit"
-          git push origin HEAD:main
-
-      - name: Upload APK Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: safelink-android-apks
-          path: dist-apks/*.apk
-          retention-days: 30
+          git push origin HEAD:main || echo "Git push skipped, artifact preserved"

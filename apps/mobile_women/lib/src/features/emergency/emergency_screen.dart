@@ -182,7 +182,7 @@ class EmergencyScreen extends ConsumerWidget {
           ),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(52),
-            side: const Border.all(color: AppColors.midnightNavy, width: 1.8),
+            side: const BorderSide(color: AppColors.midnightNavy, width: 1.8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             backgroundColor: Colors.white,
           ),

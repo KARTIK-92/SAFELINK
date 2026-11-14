@@ -257,7 +257,7 @@ class ActiveResponseScreen extends ConsumerWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  side: const Border.all(color: AppColors.emergencyRed, width: 1.5),
+                  side: const BorderSide(color: AppColors.emergencyRed, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   backgroundColor: Colors.white,
                 ),
