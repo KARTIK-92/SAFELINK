@@ -150,8 +150,34 @@ class ProductionNotificationProvider(BaseNotificationProvider):
                 clean_phone = digits[-10:] if len(digits) >= 10 else digits
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Attempt 1: Quick Route ("route": "q") for full custom text
-                    resp = await client.post(
+                    otp_match = re.search(r"\b\d{4,8}\b", message)
+
+                    # Priority 1: If message is an OTP code, use Fast2SMS dedicated instant OTP route (zero review, 1-2 sec delivery)
+                    if otp_match:
+                        otp_val = otp_match.group(0)
+                        resp_otp = await client.post(
+                            "https://www.fast2sms.com/dev/bulkV2",
+                            headers={
+                                "authorization": settings.FAST2SMS_API_KEY.strip(),
+                                "Content-Type": "application/json",
+                            },
+                            json={
+                                "route": "otp",
+                                "variables_values": otp_val,
+                                "numbers": clean_phone,
+                            },
+                        )
+                        data_otp = resp_otp.json() if resp_otp.status_code == 200 else {}
+                        if resp_otp.status_code == 200 and data_otp.get("return") is True:
+                            record.update({"status": "delivered", "provider": "fast2sms_otp", "message_id": str(data_otp.get("request_id"))})
+                            self.history.append(record)
+                            logger.info(f"[SMS DELIVERED via Fast2SMS OTP Route] To: {clean_phone} | Req: {data_otp.get('request_id')}")
+                            return record
+                        else:
+                            logger.warning(f"Fast2SMS route 'otp' returned {resp_otp.status_code}: {resp_otp.text}")
+
+                    # Priority 2: Quick route ("route": "q") for general alerts or fallback
+                    resp_q = await client.post(
                         "https://www.fast2sms.com/dev/bulkV2",
                         headers={
                             "authorization": settings.FAST2SMS_API_KEY.strip(),
@@ -165,39 +191,14 @@ class ProductionNotificationProvider(BaseNotificationProvider):
                             "numbers": clean_phone,
                         },
                     )
-                    data = resp.json() if resp.status_code == 200 else {}
-                    if resp.status_code == 200 and data.get("return") is True:
-                        record.update({"status": "delivered", "provider": "fast2sms", "message_id": str(data.get("request_id"))})
+                    data_q = resp_q.json() if resp_q.status_code == 200 else {}
+                    if resp_q.status_code == 200 and data_q.get("return") is True:
+                        record.update({"status": "delivered", "provider": "fast2sms_q", "message_id": str(data_q.get("request_id"))})
                         self.history.append(record)
-                        logger.info(f"[SMS DELIVERED via Fast2SMS] To: {clean_phone} | RequestID: {data.get('request_id')}")
+                        logger.info(f"[SMS DELIVERED via Fast2SMS 'q'] To: {clean_phone} | Req: {data_q.get('request_id')}")
                         return record
                     else:
-                        logger.warning(f"Fast2SMS route 'q' returned status {resp.status_code}: {resp.text}")
-
-                        # Attempt 2: Dedicated OTP route ("route": "otp") if an OTP code is in the message
-                        otp_match = re.search(r"\b\d{6}\b", message)
-                        if otp_match:
-                            otp_val = otp_match.group(0)
-                            resp_otp = await client.post(
-                                "https://www.fast2sms.com/dev/bulkV2",
-                                headers={
-                                    "authorization": settings.FAST2SMS_API_KEY.strip(),
-                                    "Content-Type": "application/json",
-                                },
-                                json={
-                                    "route": "otp",
-                                    "variables_values": otp_val,
-                                    "numbers": clean_phone,
-                                },
-                            )
-                            data_otp = resp_otp.json() if resp_otp.status_code == 200 else {}
-                            if resp_otp.status_code == 200 and data_otp.get("return") is True:
-                                record.update({"status": "delivered", "provider": "fast2sms_otp", "message_id": str(data_otp.get("request_id"))})
-                                self.history.append(record)
-                                logger.info(f"[SMS DELIVERED via Fast2SMS OTP Route] To: {clean_phone} | RequestID: {data_otp.get('request_id')}")
-                                return record
-                            else:
-                                logger.warning(f"Fast2SMS route 'otp' returned status {resp_otp.status_code}: {resp_otp.text}")
+                        logger.warning(f"Fast2SMS route 'q' returned {resp_q.status_code}: {resp_q.text}")
             except Exception as e:
                 logger.error(f"Failed to dispatch SMS via Fast2SMS: {e}")
 

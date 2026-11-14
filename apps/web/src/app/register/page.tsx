@@ -650,7 +650,7 @@ function RegisterContent() {
                           </div>
                           {phoneDemoOtp && (
                             <div className="rounded-lg bg-surface-100 border border-surface-200 px-3 py-2 text-[11px] text-surface-700 flex items-center justify-between">
-                              <span>SMS Gateway unconfigured. Test code: <strong className="font-mono text-surface-950">{phoneDemoOtp}</strong></span>
+                              <span>Test Code: <strong className="font-mono text-surface-950">{phoneDemoOtp}</strong> (dispatched to SMS)</span>
                               <button
                                 type="button"
                                 onClick={() => updateField("phoneOtp", phoneDemoOtp)}
