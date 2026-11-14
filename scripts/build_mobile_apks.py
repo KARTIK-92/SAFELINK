@@ -107,6 +107,24 @@ def build_app(app_name, package_name, output_apk_name):
             bg_file.write_text(bg_text, encoding="utf-8")
             print(f"[OK] Patched minSdk in {bg_file}")
 
+    # 4.5. Align Kotlin Gradle Plugin version to 1.9.24 for modern Android & geolocator compatibility
+    for sg_file in [app_dir / "android" / "settings.gradle", app_dir / "android" / "settings.gradle.kts"]:
+        if sg_file.exists():
+            sg_text = sg_file.read_text(encoding="utf-8")
+            sg_text = re.sub(r'id\s*\(?["\']org\.jetbrains\.kotlin\.android["\']\)?\s+version\s+["\'][0-9.]+["\']', 'id "org.jetbrains.kotlin.android" version "1.9.24"', sg_text)
+            sg_file.write_text(sg_text, encoding="utf-8")
+            print(f"[OK] Patched kotlin version in {sg_file}")
+
+    for root_bg in [app_dir / "android" / "build.gradle", app_dir / "android" / "build.gradle.kts"]:
+        if root_bg.exists():
+            rbg_text = root_bg.read_text(encoding="utf-8")
+            if "ext.kotlin_version" in rbg_text:
+                rbg_text = re.sub(r"ext\.kotlin_version\s*=\s*['\"][0-9.]+['\"]", "ext.kotlin_version = '1.9.24'", rbg_text)
+            else:
+                rbg_text = "buildscript { ext.kotlin_version = '1.9.24' }\n" + rbg_text
+            root_bg.write_text(rbg_text, encoding="utf-8")
+            print(f"[OK] Patched kotlin version in {root_bg}")
+
     # 5. Get Flutter dependencies
     run_cmd(["flutter", "pub", "get"], cwd=app_dir)
 
