@@ -29,18 +29,22 @@ PERMISSIONS_BLOCK = """
 
 def run_cmd(cmd, cwd=None):
     cmd_str = ' '.join(cmd) if isinstance(cmd, list) else cmd
-    print(f"\n[RUNNING] {cmd_str} (in {cwd or '.'})")
+    print(f"\n[RUNNING] {cmd_str} (in {cwd or '.'})", flush=True)
+    sys.stdout.flush()
+    sys.stderr.flush()
     res = subprocess.run(cmd, cwd=cwd, shell=isinstance(cmd, str))
+    sys.stdout.flush()
+    sys.stderr.flush()
     if res.returncode != 0:
-        print(f"[ERROR] Command '{cmd_str}' failed with exit code {res.returncode}")
+        print(f"[ERROR] Command '{cmd_str}' failed with exit code {res.returncode}", flush=True)
         sys.exit(res.returncode)
 
 
 def build_app(app_name, package_name, output_apk_name):
     app_dir = ROOT_DIR / "apps" / app_name
-    print(f"\n==========================================")
-    print(f" BUILDING {app_name.upper()} ({package_name})")
-    print(f"==========================================")
+    print(f"\n==========================================", flush=True)
+    print(f" BUILDING {app_name.upper()} ({package_name})", flush=True)
+    print(f"==========================================", flush=True)
 
     # 1. Clean existing android folder to avoid scaffolding conflict
     android_dir = app_dir / "android"
@@ -74,28 +78,41 @@ def build_app(app_name, package_name, output_apk_name):
             manifest_path.write_text(manifest_text, encoding="utf-8")
             print(f"[OK] Injected emergency permissions into {manifest_path}")
 
-    # 4. Set flutter.minSdkVersion=21 in local.properties
+    # 4. Configure local.properties with sdk.dir and flutter.minSdkVersion
+    android_sdk = (
+        os.environ.get("ANDROID_HOME")
+        or os.environ.get("ANDROID_SDK_ROOT")
+        or "/usr/local/lib/android/sdk"
+    )
     local_props = app_dir / "android" / "local.properties"
-    props_text = local_props.read_text(encoding="utf-8") if local_props.exists() else ""
-    if "flutter.minSdkVersion" not in props_text:
-        props_text += "\nflutter.minSdkVersion=21\n"
-        local_props.write_text(props_text, encoding="utf-8")
-        print(f"[OK] Set flutter.minSdkVersion=21 in {local_props}")
+    props_lines = []
+    if local_props.exists():
+        props_lines = [
+            l for l in local_props.read_text(encoding="utf-8").splitlines()
+            if not l.startswith("flutter.minSdkVersion")
+        ]
+    if not any(l.startswith("sdk.dir") for l in props_lines) and os.path.exists(android_sdk):
+        props_lines.append(f"sdk.dir={android_sdk}")
+    props_lines.append("flutter.minSdkVersion=21")
+    local_props.write_text("\n".join(props_lines) + "\n", encoding="utf-8")
+    print(f"[OK] Configured local.properties in {local_props}:\n{local_props.read_text(encoding='utf-8')}")
 
     # Also patch build.gradle files if minSdk is explicitly referenced
     for bg_file in [app_dir / "android" / "app" / "build.gradle", app_dir / "android" / "app" / "build.gradle.kts"]:
         if bg_file.exists():
             bg_text = bg_file.read_text(encoding="utf-8")
             bg_text = re.sub(r"minSdk(Version)?\s*=\s*flutter\.minSdkVersion", "minSdk = 21", bg_text)
+            bg_text = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+[0-9]+", "minSdkVersion 21", bg_text)
             bg_file.write_text(bg_text, encoding="utf-8")
+            print(f"[OK] Patched minSdk in {bg_file}")
 
     # 5. Get Flutter dependencies
     run_cmd(["flutter", "pub", "get"], cwd=app_dir)
 
     # 6. Build APK
     # --debug builds a universally signed, easily installable APK with zero keystore setup required
-    print(f"\nCompiling APK for {app_name}...")
+    print(f"\nCompiling APK for {app_name}...", flush=True)
     run_cmd(["flutter", "build", "apk", "--debug"], cwd=app_dir)
 
     # 7. Locate generated APK

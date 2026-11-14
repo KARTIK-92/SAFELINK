@@ -45,9 +45,26 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Execute Automated Mobile APK Build Script
+      - name: Configure Android SDK & Accept Licenses
         run: |
-          python3 scripts/build_mobile_apks.py
+          flutter config --no-analytics
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          flutter config --android-sdk "$ANDROID_HOME"
+          yes | flutter doctor --android-licenses || true
+          flutter doctor -v
+
+      - name: Execute Automated Mobile APK Build Script
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python3 -u scripts/build_mobile_apks.py 2>&1 | tee build.log
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
 
       - name: Deploy Compiled Real APKs to Web Downloads
         run: |
