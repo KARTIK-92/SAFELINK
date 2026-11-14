@@ -59,6 +59,13 @@ jobs:
         run: |
           python3 -u scripts/build_mobile_apks.py 2>&1 | tee build.log
 
+      - name: Display Complete Build Log
+        if: always()
+        run: |
+          echo "==================== BUILD LOG START ===================="
+          cat build.log
+          echo "==================== BUILD LOG END ======================"
+
       - name: Upload Build Log
         if: always()
         uses: actions/upload-artifact@v4
@@ -68,16 +75,17 @@ jobs:
 
       - name: Deploy Compiled Real APKs to Web Downloads
         run: |
+          echo "=== Web Downloads Directory ==="
           ls -lh apps/web/public/downloads/
+          echo "=== Dist APKs Directory ==="
+          ls -lh dist-apks/ || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git status
           git add -f apps/web/public/downloads/*.apk
-          if git diff --staged --quiet; then
-            echo "No APK changes to commit"
-          else
-            git commit -m "chore(release): deploy real compiled Android APKs to web downloads [skip ci]"
-            git push origin HEAD:main || echo "Git push skipped"
-          fi
+          git status
+          git commit -m "chore(release): deploy real compiled Android APKs to web downloads [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
