@@ -192,7 +192,7 @@ class VolunteerDashboardScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildMetric('Verified Responder', Icons.verified_user, Colors.emerald),
+                    _buildMetric('Verified Responder', Icons.verified_user, AppColors.emerald),
                     Container(width: 1, height: 28, color: const Color(0xFFE2E8F0)),
                     _buildMetric('$totalResponded Dispatches', Icons.checklist_rtl, AppColors.midnightNavy),
                     Container(width: 1, height: 28, color: const Color(0xFFE2E8F0)),

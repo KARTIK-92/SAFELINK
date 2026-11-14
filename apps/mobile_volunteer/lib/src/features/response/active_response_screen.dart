@@ -283,9 +283,9 @@ class ActiveResponseScreen extends ConsumerWidget {
     IconData icon = Icons.circle_outlined;
 
     if (isCompleted) {
-      bg = Colors.emerald.withOpacity(0.08);
-      border = Colors.emerald.withOpacity(0.3);
-      text = Colors.emerald.shade800;
+      bg = AppColors.emerald.withOpacity(0.08);
+      border = AppColors.emerald.withOpacity(0.3);
+      text = AppColors.emeraldDark;
       icon = Icons.check_circle;
     } else if (isActive) {
       bg = AppColors.brandTeal.withOpacity(0.1);

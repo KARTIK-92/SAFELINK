@@ -28,10 +28,11 @@ PERMISSIONS_BLOCK = """
 
 
 def run_cmd(cmd, cwd=None):
-    print(f"\n[RUNNING] {' '.join(cmd) if isinstance(cmd, list) else cmd} (in {cwd or '.'})")
+    cmd_str = ' '.join(cmd) if isinstance(cmd, list) else cmd
+    print(f"\n[RUNNING] {cmd_str} (in {cwd or '.'})")
     res = subprocess.run(cmd, cwd=cwd, shell=isinstance(cmd, str))
     if res.returncode != 0:
-        print(f"[ERROR] Command failed with exit code {res.returncode}")
+        print(f"[ERROR] Command '{cmd_str}' failed with exit code {res.returncode}")
         sys.exit(res.returncode)
 
 
@@ -47,8 +48,17 @@ def build_app(app_name, package_name, output_apk_name):
         print(f"Removing partial android directory in {app_dir}...")
         shutil.rmtree(android_dir)
 
+    # Backup pubspec.yaml before flutter create so all custom packages and dependencies are preserved
+    pubspec_path = app_dir / "pubspec.yaml"
+    pubspec_content = pubspec_path.read_text(encoding="utf-8") if pubspec_path.exists() else None
+
     # 2. Scaffold clean Android project with Flutter
     run_cmd(["flutter", "create", "--org", "com.safelink", "--project-name", app_name, "--platforms=android", "."], cwd=app_dir)
+
+    # Restore pubspec.yaml
+    if pubspec_content:
+        pubspec_path.write_text(pubspec_content, encoding="utf-8")
+        print(f"[OK] Preserved original pubspec.yaml for {app_name}")
 
     # 3. Inject mission-critical permissions into generated AndroidManifest.xml
     manifest_path = app_dir / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
@@ -57,7 +67,7 @@ def build_app(app_name, package_name, output_apk_name):
         if "ACCESS_FINE_LOCATION" not in manifest_text:
             manifest_text = re.sub(
                 r"(<manifest[^>]*>)",
-                r"\1" + PERMISSIONS_BLOCK,
+                r"\1\n" + PERMISSIONS_BLOCK,
                 manifest_text,
                 count=1,
             )
@@ -114,7 +124,7 @@ def build_app(app_name, package_name, output_apk_name):
 def main():
     shared_dart = ROOT_DIR / "packages" / "shared_dart"
     print(f"Preparing shared_dart at {shared_dart}...")
-    run_cmd(["dart", "pub", "get"], cwd=shared_dart)
+    run_cmd(["flutter", "pub", "get"], cwd=shared_dart)
 
     build_app("mobile_women", "com.safelink.women", "safelink-women.apk")
     build_app("mobile_volunteer", "com.safelink.volunteer", "safelink-volunteer.apk")

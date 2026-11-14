@@ -1,6 +1,18 @@
+import 'package:flutter/material.dart';
+
 /// SafeLink Unified Design Tokens for Flutter
 /// Matches the web design system: Warm off-white background, deep midnight ink navy,
 /// restrained brand teal, and dedicated emergency red.
+
+class AppColors {
+  static const Color canvasCream = Color(0xFFFDFCF7);
+  static const Color midnightNavy = Color(0xFF0F172A);
+  static const Color brandTeal = Color(0xFF0F766E);
+  static const Color slateNeutral = Color(0xFF64748B);
+  static const Color emergencyRed = Color(0xFFE11D48);
+  static const Color emerald = Color(0xFF059669);
+  static const Color emeraldDark = Color(0xFF065F46);
+}
 
 class SafeLinkColors {
   // Backgrounds

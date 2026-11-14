@@ -69,20 +69,20 @@ class VolunteerSettingsScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.emerald.withOpacity(0.12),
+                        color: AppColors.emerald.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.verified, size: 14, color: Colors.emerald),
+                          Icon(Icons.verified, size: 14, color: AppColors.emerald),
                           SizedBox(width: 4),
                           Text(
                             'Active',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Colors.emerald,
+                              color: AppColors.emerald,
                             ),
                           ),
                         ],
