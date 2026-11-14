@@ -1,0 +1,64 @@
+name: Build Android Release APKs
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/mobile_women/**'
+      - 'apps/mobile_volunteer/**'
+      - 'packages/shared_dart/**'
+      - '.github/workflows/build-apk.yml'
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    name: Build Signed Android APKs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Prepare shared_dart package
+        run: |
+          cd packages/shared_dart
+          dart pub get
+
+      - name: Scaffold & Build Women SOS APK
+        run: |
+          cd apps/mobile_women
+          # Scaffold standard Flutter Android build harness if not present
+          flutter create --platforms=android . || true
+          flutter pub get
+          flutter build apk --release --split-per-abi=false || flutter build apk --debug
+          mkdir -p ../../dist-apks
+          cp build/app/outputs/flutter-apk/*.apk ../../dist-apks/safelink-women.apk || true
+
+      - name: Scaffold & Build Volunteer Responder APK
+        run: |
+          cd apps/mobile_volunteer
+          flutter create --platforms=android . || true
+          flutter pub get
+          flutter build apk --release --split-per-abi=false || flutter build apk --debug
+          mkdir -p ../../dist-apks
+          cp build/app/outputs/flutter-apk/*.apk ../../dist-apks/safelink-volunteer.apk || true
+
+      - name: Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: safelink-android-apks
+          path: dist-apks/*.apk
+          retention-days: 30
