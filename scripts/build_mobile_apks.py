@@ -104,8 +104,14 @@ def build_app(app_name, package_name, output_apk_name):
             bg_text = re.sub(r"minSdk(Version)?\s*=\s*flutter\.minSdkVersion", "minSdk = 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+[0-9]+", "minSdkVersion 21", bg_text)
+            # Guarantee release build uses debug signing config so it is universally signed and installable
+            if "signingConfigs.debug" not in bg_text:
+                if bg_file.suffix == ".kts":
+                    bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r"\1\n            signingConfig = signingConfigs.getByName(\"debug\")", bg_text, count=1)
+                else:
+                    bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r"\1\n            signingConfig signingConfigs.debug", bg_text, count=1)
             bg_file.write_text(bg_text, encoding="utf-8")
-            print(f"[OK] Patched minSdk in {bg_file}")
+            print(f"[OK] Patched minSdk and signingConfig in {bg_file}")
 
     # 4.5. Align Kotlin Gradle Plugin version to 1.9.24 for modern Android & geolocator compatibility
     for sg_file in [app_dir / "android" / "settings.gradle", app_dir / "android" / "settings.gradle.kts"]:
@@ -128,15 +134,14 @@ def build_app(app_name, package_name, output_apk_name):
     # 5. Get Flutter dependencies
     run_cmd(["flutter", "pub", "get"], cwd=app_dir)
 
-    # 6. Build APK
-    # --debug builds a universally signed, easily installable APK with zero keystore setup required
-    print(f"\nCompiling APK for {app_name}...", flush=True)
-    run_cmd(["flutter", "build", "apk", "--debug"], cwd=app_dir)
+    # 6. Build Release APK (lightweight, optimized, signed with debug keystore)
+    print(f"\nCompiling Lightweight Release APK for {app_name}...", flush=True)
+    run_cmd(["flutter", "build", "apk", "--release"], cwd=app_dir)
 
     # 7. Locate generated APK
     apk_candidates = (
         list(app_dir.glob("build/app/outputs/flutter-apk/*.apk"))
-        or list(app_dir.glob("build/app/outputs/apk/debug/*.apk"))
+        or list(app_dir.glob("build/app/outputs/apk/release/*.apk"))
         or list(app_dir.glob("**/outputs/**/*.apk"))
         or list(app_dir.glob("**/*.apk"))
     )
