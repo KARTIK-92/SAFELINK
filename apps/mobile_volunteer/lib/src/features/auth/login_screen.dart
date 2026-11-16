@@ -4,14 +4,16 @@ import 'package:shared_dart/shared_dart.dart';
 import '../../core/api_client.dart';
 import 'auth_controller.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class VolunteerLoginScreen extends ConsumerStatefulWidget {
+  const VolunteerLoginScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<VolunteerLoginScreen> createState() => _VolunteerLoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+typedef LoginScreen = VolunteerLoginScreen;
+
+class _VolunteerLoginScreenState extends ConsumerState<VolunteerLoginScreen> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
