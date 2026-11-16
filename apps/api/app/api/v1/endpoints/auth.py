@@ -1,8 +1,9 @@
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -27,6 +28,39 @@ from app.api.deps import get_current_user
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+def normalize_phone_variants(identifier: str) -> list[str]:
+    """Generate all common phone formatting variants (e.g. +91, 0, or bare 10-digit)."""
+    raw = identifier.strip()
+    digits = re.sub(r"\D", "", raw)
+    variants = {raw}
+    if not digits:
+        return list(variants)
+
+    # 10 digit Indian number without country code
+    if len(digits) == 10:
+        variants.add(f"+91{digits}")
+        variants.add(digits)
+        variants.add(f"0{digits}")
+        variants.add(f"91{digits}")
+    # 12 digits starting with 91
+    elif len(digits) == 12 and digits.startswith("91"):
+        ten = digits[2:]
+        variants.add(f"+{digits}")
+        variants.add(f"+91{ten}")
+        variants.add(ten)
+        variants.add(f"0{ten}")
+    # 11 digits starting with 0
+    elif len(digits) == 11 and digits.startswith("0"):
+        ten = digits[1:]
+        variants.add(f"+91{ten}")
+        variants.add(ten)
+        variants.add(digits)
+    else:
+        variants.add(f"+{digits}")
+        variants.add(digits)
+    return list(variants)
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     payload: RegisterRequest,
@@ -47,8 +81,10 @@ async def register(
         )
 
     # 2. Check if phone or email already registered
+    phone_variants = normalize_phone_variants(payload.phone)
+    clean_email = payload.email.strip().lower()
     existing_check = await db.execute(
-        select(User).where(or_(User.phone == payload.phone, User.email == payload.email))
+        select(User).where(or_(User.phone.in_(phone_variants), func.lower(User.email) == clean_email))
     )
     if existing_check.scalar_one_or_none():
         raise HTTPException(
@@ -58,9 +94,12 @@ async def register(
 
     # 3. Create User record with Argon2id password hash
     hashed_pwd = hash_password(payload.password)
+    digits = re.sub(r"\D", "", payload.phone)
+    canonical_phone = f"+91{digits}" if len(digits) == 10 else payload.phone.strip()
+
     user = User(
-        phone=payload.phone,
-        email=payload.email,
+        phone=canonical_phone,
+        email=clean_email,
         hashed_password=hashed_pwd,
         role=payload.role,
         status=AccountStatus.PENDING,
@@ -155,14 +194,16 @@ async def verify_otp(
         )
 
     # If verification is for registration or contact verification, mark verified in DB
+    phone_variants = normalize_phone_variants(payload.destination)
+    clean_dest = payload.destination.strip().lower()
     result = await db.execute(
-        select(User).where(or_(User.phone == payload.destination, User.email == payload.destination))
+        select(User).where(or_(User.phone.in_(phone_variants), func.lower(User.email) == clean_dest))
     )
     user = result.scalar_one_or_none()
     if user:
-        if user.phone == payload.destination:
+        if user.phone in phone_variants:
             user.is_phone_verified = True
-        if user.email == payload.destination:
+        if user.email and user.email.lower() == clean_dest:
             user.is_email_verified = True
         # If in automated testing mode and both verified, transition status to VERIFIED
         if user.is_phone_verified and user.is_email_verified and (settings.TESTING or settings.VERIFICATION_PROVIDER in ("mock", "auto")):
@@ -184,19 +225,21 @@ async def login(
     """Authenticate via Phone/Email + Password OR Phone/Email + OTP.
     Returns short-lived access token and single-use refresh token.
     """
+    ident = payload.identifier.strip()
+    phone_variants = normalize_phone_variants(ident)
+    email_clean = ident.lower()
+
     result = await db.execute(
-        select(User).where(or_(User.phone == payload.identifier, User.email == payload.identifier))
+        select(User).where(or_(User.phone.in_(phone_variants), func.lower(User.email) == email_clean))
     )
     user = result.scalar_one_or_none()
 
-    generic_auth_err = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect mobile/email or password.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
     if not user:
-        raise generic_auth_err
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account not found. Please check your mobile number or email, or register on the website first.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not user.is_active or user.status == AccountStatus.SUSPENDED:
         raise HTTPException(
@@ -223,7 +266,11 @@ async def login(
                 user.locked_until = now + timedelta(minutes=15)
                 user.failed_login_attempts = 0
             await db.commit()
-            raise generic_auth_err
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password. Please verify your password or use forgot password.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     elif payload.otp_code:
         is_valid, _ = otp_service.verify(payload.identifier, payload.otp_code, "login")
         if is_valid:

@@ -20,6 +20,13 @@ class StorageService {
   static const _keyRefreshToken = 'safelink_refresh_token';
   static const _keyUserData = 'safelink_user_data';
   static const _keyActiveIncidentId = 'safelink_active_incident_id';
+  static const _keyBaseUrl = 'safelink_custom_base_url';
+
+  Future<String?> getBaseUrl() async => await _storage.read(key: _keyBaseUrl);
+  Future<void> setBaseUrl(String url) async =>
+      await _storage.write(key: _keyBaseUrl, value: url.trim());
+  Future<void> clearBaseUrl() async =>
+      await _storage.delete(key: _keyBaseUrl);
 
   Future<String?> getAccessToken() async => await _storage.read(key: _keyAccessToken);
   Future<void> setAccessToken(String token) async =>
@@ -28,9 +35,6 @@ class StorageService {
   Future<String?> getRefreshToken() async => await _storage.read(key: _keyRefreshToken);
   Future<void> setRefreshToken(String token) async =>
       await _storage.write(key: _keyRefreshToken, value: token);
-
-  Future<void> saveUserData(Map<String, dynamic> data) async =>
-      await _storage.write(key: _keyUserData, value: jsonEncode(data));
 
   Future<Map<String, dynamic>?> getUserData() async {
     final raw = await _storage.read(key: _keyUserData);
@@ -41,6 +45,9 @@ class StorageService {
       return null;
     }
   }
+
+  Future<void> saveUserData(Map<String, dynamic> data) async =>
+      await _storage.write(key: _keyUserData, value: jsonEncode(data));
 
   Future<String?> getActiveIncidentId() async =>
       await _storage.read(key: _keyActiveIncidentId);
@@ -54,6 +61,10 @@ class StorageService {
   }
 
   Future<void> clearAll() async {
+    final savedUrl = await getBaseUrl();
     await _storage.deleteAll();
+    if (savedUrl != null) {
+      await setBaseUrl(savedUrl);
+    }
   }
 }

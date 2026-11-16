@@ -100,7 +100,14 @@ class AuthController extends StateNotifier<AuthState> {
       return true;
     } on DioException catch (e) {
       String msg = 'Login failed. Please verify your volunteer credentials.';
-      if (e.response?.data is Map && e.response?.data['detail'] != null) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        msg = 'Cannot connect to server. Please tap Server Settings (⚙️) below to verify your backend API URL.';
+      } else if (e.response?.statusCode == 404) {
+        msg = 'API endpoint not found (HTTP 404). Please verify your server URL in Server Settings (⚙️).';
+      } else if (e.response?.data is Map && e.response?.data['detail'] != null) {
         msg = e.response?.data['detail'].toString() ?? msg;
       }
       state = state.copyWith(isLoading: false, errorMessage: msg);
