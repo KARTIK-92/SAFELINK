@@ -1,16 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_dart/shared_dart.dart';
+import '../../core/location_service.dart';
 import 'emergency_controller.dart';
 import 'widgets/sos_hold_button.dart';
 import 'widgets/active_sos_card.dart';
 import 'widgets/responder_status_list.dart';
 
-class EmergencyScreen extends ConsumerWidget {
+class EmergencyScreen extends ConsumerStatefulWidget {
   const EmergencyScreen({super.key});
 
-  void _showCancelDialog(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<EmergencyScreen> createState() => _EmergencyScreenState();
+}
+
+class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationServiceProvider).ensurePermission().then((granted) {
+        if (granted) {
+          ref.read(locationServiceProvider).warmUpLocation().then((pos) {
+            if (pos != null && mounted) {
+              ref.read(emergencyControllerProvider.notifier).updateCachedPosition(pos);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  void _showCancelDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -47,8 +70,25 @@ class EmergencyScreen extends ConsumerWidget {
     );
   }
 
+  void _shareTrackingLink(BuildContext context, String? trackingUrl) {
+    if (trackingUrl == null || trackingUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating live tracking link...')),
+      );
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: trackingUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Live link copied to clipboard:\n$trackingUrl\nPaste & share with family on WhatsApp/SMS.'),
+        duration: const Duration(seconds: 4),
+        backgroundColor: AppColors.midnightNavy,
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final emergencyState = ref.watch(emergencyControllerProvider);
     final emergencyNotifier = ref.read(emergencyControllerProvider.notifier);
 
@@ -87,7 +127,7 @@ class EmergencyScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: emergencyState.isActive
-              ? _buildActiveView(context, ref, emergencyState, emergencyNotifier)
+              ? _buildActiveView(context, emergencyState, emergencyNotifier)
               : _buildIdleView(context, emergencyState, emergencyNotifier),
         ),
       ),
@@ -99,6 +139,7 @@ class EmergencyScreen extends ConsumerWidget {
     EmergencyState state,
     EmergencyController notifier,
   ) {
+    final hasGps = state.lastPosition != null;
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -108,7 +149,7 @@ class EmergencyScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: hasGps ? Colors.green.shade300 : const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.02),
@@ -117,17 +158,23 @@ class EmergencyScreen extends ConsumerWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.location_on, color: AppColors.brandTeal, size: 20),
-              SizedBox(width: 10),
+              Icon(
+                hasGps ? Icons.gps_fixed : Icons.location_on_outlined,
+                color: hasGps ? Colors.green.shade600 : AppColors.brandTeal,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'GPS Standby • Continuous tracking activates strictly during an emergency SOS',
+                  hasGps
+                      ? 'GPS Active (${state.lastPosition!.latitude.toStringAsFixed(4)}, ${state.lastPosition!.longitude.toStringAsFixed(4)}) • Accuracy ~${state.lastPosition!.accuracy.round()}m'
+                      : 'GPS Standby • Device location ready for instant SOS trigger',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.slateNeutral,
+                    fontWeight: FontWeight.w600,
+                    color: hasGps ? AppColors.midnightNavy : AppColors.slateNeutral,
                   ),
                 ),
               ),
@@ -135,7 +182,7 @@ class EmergencyScreen extends ConsumerWidget {
           ),
         ),
 
-        // SOS Hold Button
+        // SOS Button
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -145,9 +192,9 @@ class EmergencyScreen extends ConsumerWidget {
                 notifier.startEmergency();
               },
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
             const Text(
-              'Hold button for 1.5 seconds to trigger emergency',
+              'Tap or hold button to trigger emergency',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
@@ -156,7 +203,7 @@ class EmergencyScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Notifies up to 3 registered emergency contacts with your live location\nand coordinates with verified volunteers within ~1 km.',
+              'Immediately alerts up to 3 emergency contacts with your live tracking link\nand dispatches verified community volunteers nearby.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -193,7 +240,6 @@ class EmergencyScreen extends ConsumerWidget {
 
   Widget _buildActiveView(
     BuildContext context,
-    WidgetRef ref,
     EmergencyState state,
     EmergencyController notifier,
   ) {
@@ -207,7 +253,27 @@ class EmergencyScreen extends ConsumerWidget {
               children: [
                 // Active SOS Live GPS Card
                 ActiveSosCard(state: state),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+
+                // Share Live Tracking Link Button
+                ElevatedButton.icon(
+                  onPressed: () => _shareTrackingLink(context, state.trackingUrl),
+                  icon: const Icon(Icons.share, color: Colors.white, size: 18),
+                  label: const Text(
+                    'SHARE LIVE TRACKING LINK',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandTeal,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 14),
 
                 // Responders Status
                 ResponderStatusList(responders: state.responders),
@@ -258,7 +324,7 @@ class EmergencyScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () => _showCancelDialog(context, ref),
+              onPressed: () => _showCancelDialog(context),
               style: OutlinedButton.styleFrom(
                 backgroundColor: AppColors.midnightNavy,
                 foregroundColor: Colors.white,

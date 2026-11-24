@@ -97,7 +97,7 @@ export default function DownloadPage() {
               <ul className="space-y-2 text-xs text-neutral-700 pt-2">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                  <span>1.5-second hold-to-activate emergency SOS with haptic pulse</span>
+                  <span>Instant tap or hold emergency SOS activation with haptic pulse</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />

@@ -8,15 +8,27 @@ from app.core.config import settings
 
 # Determine DB Engine options
 connect_args = {}
+engine_kwargs = {
+    "echo": False,
+    "future": True,
+    "pool_pre_ping": True,
+}
+
 if "sqlite" in settings.DATABASE_URL:
     connect_args = {"check_same_thread": False}
+else:
+    # PostgreSQL / Neon / Supabase pooling optimizations
+    engine_kwargs.update({
+        "pool_recycle": 300,
+        "pool_size": 10,
+        "max_overflow": 20,
+    })
 
 # Async Engine for FastAPI handlers
 async_engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,
-    future=True,
-    connect_args=connect_args
+    connect_args=connect_args,
+    **engine_kwargs
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -39,11 +51,22 @@ elif sync_url.startswith("postgresql://"):
         # Fallback to psycopg2 dialect if psycopg (v3) is not present
         sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+sync_engine_kwargs = {
+    "echo": False,
+    "future": True,
+    "pool_pre_ping": True,
+}
+if "sqlite" not in sync_url:
+    sync_engine_kwargs.update({
+        "pool_recycle": 300,
+        "pool_size": 5,
+        "max_overflow": 10,
+    })
+
 sync_engine = create_engine(
     sync_url,
-    echo=False,
-    future=True,
-    connect_args=sync_connect_args
+    connect_args=sync_connect_args,
+    **sync_engine_kwargs
 )
 
 SyncSessionLocal = sessionmaker(

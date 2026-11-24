@@ -27,7 +27,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 700),
     )
       ..addListener(() {
         setState(() {
@@ -55,6 +55,12 @@ class _SosHoldButtonState extends State<SosHoldButton>
     _controller.reverse();
   }
 
+  void _onDirectTap() {
+    if (widget.isLoading) return;
+    HapticFeedback.heavyImpact();
+    widget.onTriggered();
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -64,6 +70,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: _onDirectTap,
       onTapDown: (_) => _onHoldStart(),
       onTapUp: (_) => _resetHold(),
       onTapCancel: () => _resetHold(),
@@ -135,11 +142,11 @@ class _SosHoldButtonState extends State<SosHoldButton>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _isHolding ? 'HOLDING...' : 'HOLD 1.5s',
+                        _isHolding ? 'TRIGGERING...' : 'TAP OR HOLD',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withOpacity(0.95),
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           letterSpacing: 1,
                         ),
                       ),

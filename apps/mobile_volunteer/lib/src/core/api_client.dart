@@ -47,8 +47,8 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: baseUrl ?? defaultBaseUrl,
-        connectTimeout: const Duration(seconds: 12),
-        receiveTimeout: const Duration(seconds: 12),
+        connectTimeout: const Duration(seconds: 25),
+        receiveTimeout: const Duration(seconds: 25),
         contentType: 'application/json',
         responseType: ResponseType.json,
       ),
@@ -188,5 +188,11 @@ class ApiClient {
 
   Future<Response> getIncidentDetails(String incidentId) async {
     return await dio.get('/volunteer/incidents/$incidentId/details');
+  }
+
+  Future<void> preWarmBackend() async {
+    try {
+      await dio.get('/health');
+    } catch (_) {}
   }
 }

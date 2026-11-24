@@ -8,6 +8,9 @@ final locationServiceProvider = Provider<LocationService>((ref) {
 
 class LocationService {
   StreamSubscription<Position>? _positionStreamSub;
+  Position? _cachedPosition;
+
+  Position? get cachedPosition => _cachedPosition;
 
   Future<bool> isLocationEnabled() async {
     return await Geolocator.isLocationServiceEnabled();
@@ -25,33 +28,81 @@ class LocationService {
     return permission;
   }
 
-  /// Get rapid current GPS fix with fallback
-  Future<Position?> getCurrentPosition() async {
+  /// Ensure location permissions are granted early in the foreground
+  Future<bool> ensurePermission() async {
+    final enabled = await isLocationEnabled();
+    if (!enabled) return false;
+
+    LocationPermission permission = await checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await requestPermission();
+    }
+    final granted = permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+    if (granted) {
+      // Warm up position cache immediately
+      warmUpLocation();
+    }
+    return granted;
+  }
+
+  /// Pre-warm GPS fix in background without blocking UI
+  Future<Position?> warmUpLocation() async {
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        _cachedPosition = lastKnown;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 3),
+      );
+      _cachedPosition = pos;
+      return pos;
+    } catch (_) {
+      return _cachedPosition;
+    }
+  }
+
+  /// Rapid current GPS fix (<1s) with cached fallback
+  Future<Position?> getCurrentPosition({bool fastOnly = false}) async {
     final enabled = await isLocationEnabled();
     if (!enabled) {
-      return null;
+      return _cachedPosition;
     }
 
     var permission = await checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await requestPermission();
-      if (permission == LocationPermission.denied) {
-        return null;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return _cachedPosition;
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      return null;
+    // Fast check: return cached position immediately if requested
+    if (fastOnly && _cachedPosition != null) {
+      return _cachedPosition;
     }
 
+    // Check last known hardware position (<20ms)
     try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 8),
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        _cachedPosition = lastKnown;
+      }
+    } catch (_) {}
+
+    // Rapid network/cell/GPS fix with 2-second timeout
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 2),
       );
+      _cachedPosition = pos;
+      return pos;
     } catch (_) {
-      // Return last known position as fast fallback if device GPS lock takes too long
-      return await Geolocator.getLastKnownPosition();
+      return _cachedPosition;
     }
   }
 
@@ -70,6 +121,7 @@ class LocationService {
     _positionStreamSub = Geolocator.getPositionStream(
       locationSettings: locationSettings,
     ).listen((position) {
+      _cachedPosition = position;
       onLocationUpdate(position);
     });
   }

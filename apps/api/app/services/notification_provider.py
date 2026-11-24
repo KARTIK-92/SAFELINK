@@ -151,9 +151,14 @@ class ProductionNotificationProvider(BaseNotificationProvider):
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     otp_match = re.search(r"\b\d{4,8}\b", message)
+                    is_pure_otp = bool(
+                        otp_match
+                        and ("OTP" in message or "verification code" in message.lower() or "code is" in message.lower())
+                        and not ("EMERGENCY" in message or "http" in message or "location" in message.lower())
+                    )
 
-                    # Priority 1: If message is an OTP code, use Fast2SMS dedicated instant OTP route (zero review, 1-2 sec delivery)
-                    if otp_match:
+                    # Priority 1: If message is strictly an OTP authentication code, use Fast2SMS dedicated instant OTP route
+                    if is_pure_otp and otp_match:
                         otp_val = otp_match.group(0)
                         resp_otp = await client.post(
                             "https://www.fast2sms.com/dev/bulkV2",
@@ -176,7 +181,7 @@ class ProductionNotificationProvider(BaseNotificationProvider):
                         else:
                             logger.warning(f"Fast2SMS route 'otp' returned {resp_otp.status_code}: {resp_otp.text}")
 
-                    # Priority 2: Quick route ("route": "q") for general alerts or fallback
+                    # Priority 2: Quick route ("route": "q") for general alerts or emergency tracking links
                     resp_q = await client.post(
                         "https://www.fast2sms.com/dev/bulkV2",
                         headers={

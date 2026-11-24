@@ -87,6 +87,19 @@ class EmergencyController extends StateNotifier<EmergencyState> {
         _storage = storage,
         super(const EmergencyState()) {
     checkActiveEmergency();
+    _warmUpLocation();
+  }
+
+  void _warmUpLocation() {
+    _location.warmUpLocation().then((pos) {
+      if (pos != null) {
+        state = state.copyWith(lastPosition: pos);
+      }
+    });
+  }
+
+  void updateCachedPosition(Position pos) {
+    state = state.copyWith(lastPosition: pos);
   }
 
   /// Check if user has an existing active emergency on server
@@ -109,13 +122,20 @@ class EmergencyController extends StateNotifier<EmergencyState> {
     }
   }
 
-  /// Trigger Rapid Emergency Alert
+  /// Trigger Rapid Emergency Alert (<1s latency)
   Future<bool> startEmergency() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    // 1. Obtain rapid GPS position
-    Position? position = await _location.getCurrentPosition();
-    // Fallback coordinates if device simulator lacks GPS hardware
+    // 1. Obtain instant GPS position (pre-warmed or fast lookup)
+    Position? position = state.lastPosition ?? _location.cachedPosition;
+    if (position == null) {
+      position = await _location.getCurrentPosition(fastOnly: true);
+    }
+    if (position == null) {
+      position = await _location.getCurrentPosition(fastOnly: false);
+    }
+
+    // Default fallback only if hardware completely lacks GPS
     position ??= Position(
       latitude: 12.9716,
       longitude: 77.5946,

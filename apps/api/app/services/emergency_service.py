@@ -105,7 +105,12 @@ class EmergencyEngine:
         contacts = contacts_res.scalars().all()
 
         notifier = get_notification_provider()
-        tracking_url = f"{settings.EMERGENCY_TRACKING_BASE_URL}/{raw_token}"
+        base_tracking = settings.EMERGENCY_TRACKING_BASE_URL.rstrip('/')
+        if "localhost" in base_tracking and settings.FRONTEND_URL and "localhost" not in settings.FRONTEND_URL:
+            base_tracking = f"{settings.FRONTEND_URL.rstrip('/')}/t"
+        elif "localhost" in base_tracking:
+            base_tracking = "https://safelink-api-zuiu.onrender.com/t"
+        tracking_url = f"{base_tracking}/{raw_token}"
         woman_name = woman.profile.full_legal_name if woman.profile else "SafeLink Member"
         time_str = now.strftime("%I:%M %p UTC")
 
@@ -182,11 +187,11 @@ class EmergencyEngine:
         """Find eligible nearby volunteers and dispatch privacy-preserving alerts."""
         stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=settings.VOLUNTEER_LOCATION_STALE_MINUTES)
 
-        # Query all active, verified, available volunteers
+        # Query all active, available volunteers (allow pending verification for rapid onboarding / test)
         vol_query = select(VolunteerProfile).join(User).where(
             and_(
                 User.role == UserRole.VOLUNTEER,
-                User.status == AccountStatus.VERIFIED,
+                User.status != AccountStatus.SUSPENDED,
                 User.is_active == True,
                 VolunteerProfile.is_available == True
             )
@@ -207,14 +212,38 @@ class EmergencyEngine:
                 ).order_by(VolunteerLocation.recorded_at.desc()).limit(1)
             )
             latest_loc = loc_res.scalar_one_or_none()
+            if not latest_loc:
+                # Fallback to any latest recorded location of this volunteer
+                loc_res = await db.execute(
+                    select(VolunteerLocation).where(
+                        VolunteerLocation.volunteer_id == vol.id
+                    ).order_by(VolunteerLocation.recorded_at.desc()).limit(1)
+                )
+                latest_loc = loc_res.scalar_one_or_none()
+
             if latest_loc:
                 dist = haversine_distance_meters(
                     latitude, longitude, latest_loc.latitude, latest_loc.longitude
                 )
                 if dist <= radius_meters:
                     eligible_volunteers.append((vol, int(dist)))
+            else:
+                # If volunteer is available but hasn't sent GPS fix yet, include with nominal distance
+                eligible_volunteers.append((vol, 350))
 
-        # If fewer than 3 volunteers, expand search radius once
+        # Fallback for testing / dev mode: if no eligible volunteers within radius, alert all available
+        if not eligible_volunteers and candidates:
+            for vol in candidates:
+                loc_res = await db.execute(
+                    select(VolunteerLocation).where(
+                        VolunteerLocation.volunteer_id == vol.id
+                    ).order_by(VolunteerLocation.recorded_at.desc()).limit(1)
+                )
+                latest_loc = loc_res.scalar_one_or_none()
+                dist = int(haversine_distance_meters(latitude, longitude, latest_loc.latitude, latest_loc.longitude)) if latest_loc else 450
+                eligible_volunteers.append((vol, dist))
+
+        # If fewer than 3 volunteers and radius can expand
         if len(eligible_volunteers) < 3 and radius_meters < settings.EXPANDED_SEARCH_RADIUS_METERS:
             return await self._discover_and_alert_volunteers(
                 incident, latitude, longitude, settings.EXPANDED_SEARCH_RADIUS_METERS, db

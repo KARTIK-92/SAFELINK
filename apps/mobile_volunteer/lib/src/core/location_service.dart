@@ -8,6 +8,9 @@ final locationServiceProvider = Provider<LocationService>((ref) {
 
 class LocationService {
   Timer? _locationTimer;
+  Position? _cachedPosition;
+
+  Position? get cachedPosition => _cachedPosition;
 
   Future<bool> isLocationEnabled() async {
     return await Geolocator.isLocationServiceEnabled();
@@ -25,43 +28,98 @@ class LocationService {
     return permission;
   }
 
-  Future<Position?> getCurrentPosition() async {
+  /// Ensure permissions are requested early in the foreground
+  Future<bool> ensurePermission() async {
     final enabled = await isLocationEnabled();
-    if (!enabled) return null;
+    if (!enabled) return false;
+
+    LocationPermission permission = await checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await requestPermission();
+    }
+    final granted = permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+    if (granted) {
+      warmUpLocation();
+    }
+    return granted;
+  }
+
+  /// Pre-warm GPS fix in background
+  Future<Position?> warmUpLocation() async {
+    try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) _cachedPosition = last;
+      final cur = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 3),
+      );
+      _cachedPosition = cur;
+      return cur;
+    } catch (_) {
+      return _cachedPosition;
+    }
+  }
+
+  /// Rapid current GPS fix (<1s) with cached fallback
+  Future<Position?> getCurrentPosition({bool fastOnly = false}) async {
+    final enabled = await isLocationEnabled();
+    if (!enabled) return _cachedPosition;
 
     var permission = await checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await requestPermission();
-      if (permission == LocationPermission.denied) return null;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return _cachedPosition;
+      }
     }
-    if (permission == LocationPermission.deniedForever) return null;
 
+    if (fastOnly && _cachedPosition != null) {
+      return _cachedPosition;
+    }
+
+    // Fast last known hardware fix (<20ms)
     try {
-      return await Geolocator.getCurrentPosition(
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        _cachedPosition = lastKnown;
+      }
+    } catch (_) {}
+
+    // Rapid network/cell/GPS fix with 2-second timeout
+    try {
+      final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 8),
+        timeLimit: const Duration(seconds: 2),
       );
+      _cachedPosition = pos;
+      return pos;
     } catch (_) {
-      return await Geolocator.getLastKnownPosition();
+      return _cachedPosition;
     }
   }
 
   /// Battery-aware periodic position reporting while volunteer is AVAILABLE
   void startPeriodicReporter({
     required Function(Position position) onPositionReady,
-    Duration interval = const Duration(minutes: 3),
+    Duration interval = const Duration(minutes: 1),
   }) {
     stopPeriodicReporter();
 
     // Trigger immediate first fix
-    getCurrentPosition().then((pos) {
-      if (pos != null) onPositionReady(pos);
+    getCurrentPosition(fastOnly: false).then((pos) {
+      if (pos != null) {
+        _cachedPosition = pos;
+        onPositionReady(pos);
+      }
     });
 
-    // Schedule background interval
+    // Schedule periodic update
     _locationTimer = Timer.periodic(interval, (_) async {
-      final pos = await getCurrentPosition();
+      final pos = await getCurrentPosition(fastOnly: false);
       if (pos != null) {
+        _cachedPosition = pos;
         onPositionReady(pos);
       }
     });

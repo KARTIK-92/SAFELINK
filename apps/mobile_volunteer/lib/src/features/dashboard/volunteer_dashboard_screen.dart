@@ -2,13 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_dart/shared_dart.dart';
+import '../../core/location_service.dart';
 import 'volunteer_controller.dart';
 
-class VolunteerDashboardScreen extends ConsumerWidget {
+class VolunteerDashboardScreen extends ConsumerStatefulWidget {
   const VolunteerDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VolunteerDashboardScreen> createState() => _VolunteerDashboardScreenState();
+}
+
+class _VolunteerDashboardScreenState extends ConsumerState<VolunteerDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationServiceProvider).ensurePermission().then((granted) {
+        if (granted) {
+          ref.read(locationServiceProvider).warmUpLocation().then((pos) {
+            if (pos != null && mounted) {
+              ref.read(volunteerControllerProvider.notifier).reportCurrentPosition(pos);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final volunteerState = ref.watch(volunteerControllerProvider);
     final volunteerNotifier = ref.read(volunteerControllerProvider.notifier);
 
@@ -174,6 +196,41 @@ class VolunteerDashboardScreen extends ConsumerWidget {
                       value: isAvailable,
                       onChanged: (val) => volunteerNotifier.toggleAvailability(val),
                       activeColor: AppColors.brandTeal,
+                    ),
+                  ],
+                ),
+              ),
+
+              // GPS Readiness Status Pill
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: volunteerState.lastPosition != null ? Colors.green.shade300 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      volunteerState.lastPosition != null ? Icons.gps_fixed : Icons.location_on_outlined,
+                      color: volunteerState.lastPosition != null ? Colors.green.shade600 : AppColors.brandTeal,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        volunteerState.lastPosition != null
+                            ? 'GPS Ready (${volunteerState.lastPosition!.latitude.toStringAsFixed(4)}, ${volunteerState.lastPosition!.longitude.toStringAsFixed(4)}) • Real-time location reported to dispatch radar'
+                            : 'GPS Standby • Device location ready for nearby dispatches',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: volunteerState.lastPosition != null ? AppColors.midnightNavy : AppColors.slateNeutral,
+                        ),
+                      ),
                     ),
                   ],
                 ),

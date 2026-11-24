@@ -13,6 +13,7 @@ class VolunteerState {
   final Map<String, dynamic>? profile;
   final List<Map<String, dynamic>> candidateIncidents;
   final Map<String, dynamic>? activeIncident;
+  final Position? lastPosition;
   final String? errorMessage;
 
   const VolunteerState({
@@ -21,6 +22,7 @@ class VolunteerState {
     this.profile,
     this.candidateIncidents = const [],
     this.activeIncident,
+    this.lastPosition,
     this.errorMessage,
   });
 
@@ -30,6 +32,7 @@ class VolunteerState {
     Map<String, dynamic>? profile,
     List<Map<String, dynamic>>? candidateIncidents,
     Map<String, dynamic>? activeIncident,
+    Position? lastPosition,
     String? errorMessage,
   }) {
     return VolunteerState(
@@ -38,6 +41,7 @@ class VolunteerState {
       profile: profile ?? this.profile,
       candidateIncidents: candidateIncidents ?? this.candidateIncidents,
       activeIncident: activeIncident,
+      lastPosition: lastPosition ?? this.lastPosition,
       errorMessage: errorMessage,
     );
   }
@@ -117,18 +121,24 @@ class VolunteerController extends StateNotifier<VolunteerState> {
     }
   }
 
+  Future<void> reportCurrentPosition(Position pos) async {
+    state = state.copyWith(lastPosition: pos);
+    if (!state.isAvailable) return;
+    try {
+      await _api.updateLocation(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        accuracyMeters: pos.accuracy,
+        speed: pos.speed,
+        heading: pos.heading,
+      );
+    } catch (_) {}
+  }
+
   void _startLocationReporting() {
     _location.startPeriodicReporter(
       onPositionReady: (pos) async {
-        try {
-          await _api.updateLocation(
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-            accuracyMeters: pos.accuracy,
-            speed: pos.speed,
-            heading: pos.heading,
-          );
-        } catch (_) {}
+        reportCurrentPosition(pos);
       },
     );
   }

@@ -18,6 +18,7 @@ from app.schemas.volunteer import (
     VolunteerIncidentSummary, VolunteerStatusUpdate
 )
 from app.services.emergency_service import emergency_engine
+from app.core.geo import haversine_distance_meters
 
 router = APIRouter(prefix="/volunteer", tags=["Volunteer Responder"])
 
@@ -119,10 +120,10 @@ async def list_nearby_incidents(
         select(VolunteerProfile).where(VolunteerProfile.user_id == current_user.id)
     )
     profile = prof_res.scalar_one_or_none()
-    if not profile:
+    if not profile or not profile.is_available:
         return []
 
-    # Fetch alerts for this volunteer for active incidents
+    # 1. Fetch alerts for this volunteer for active incidents
     query = (
         select(IncidentVolunteer, EmergencyIncident)
         .join(EmergencyIncident, IncidentVolunteer.incident_id == EmergencyIncident.id)
@@ -141,6 +142,7 @@ async def list_nearby_incidents(
     res = await db.execute(query)
     rows = res.all()
 
+    existing_incident_ids = {iv.incident_id for iv, inc in rows}
     summaries = []
     for iv, inc in rows:
         summaries.append(
@@ -152,6 +154,44 @@ async def list_nearby_incidents(
                 address_hint=inc.address_snapshot
             )
         )
+
+    # 2. Check for any active emergency incidents not yet assigned to this available volunteer
+    all_active_res = await db.execute(
+        select(EmergencyIncident).where(EmergencyIncident.status == IncidentStatus.ACTIVE).order_by(EmergencyIncident.started_at.desc())
+    )
+    all_active = all_active_res.scalars().all()
+    for inc in all_active:
+        if inc.id not in existing_incident_ids:
+            # Query volunteer's latest position for distance estimate
+            loc_res = await db.execute(
+                select(VolunteerLocation).where(
+                    VolunteerLocation.volunteer_id == profile.id
+                ).order_by(VolunteerLocation.recorded_at.desc()).limit(1)
+            )
+            v_loc = loc_res.scalar_one_or_none()
+            dist = 450
+            if v_loc:
+                dist = int(haversine_distance_meters(inc.origin_latitude, inc.origin_longitude, v_loc.latitude, v_loc.longitude))
+
+            new_iv = IncidentVolunteer(
+                incident_id=inc.id,
+                volunteer_id=profile.id,
+                status=VolunteerIncidentStatus.ALERT_RECEIVED,
+                initial_distance_meters=dist,
+                notified_at=datetime.now(timezone.utc)
+            )
+            db.add(new_iv)
+            await db.commit()
+            summaries.append(
+                VolunteerIncidentSummary(
+                    incident_id=str(inc.id),
+                    status=new_iv.status.value,
+                    approximate_distance_meters=dist,
+                    started_at=inc.started_at,
+                    address_hint=inc.address_snapshot
+                )
+            )
+            existing_incident_ids.add(inc.id)
 
     return summaries
 

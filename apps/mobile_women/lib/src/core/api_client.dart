@@ -47,8 +47,8 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: baseUrl ?? defaultBaseUrl,
-        connectTimeout: const Duration(seconds: 12),
-        receiveTimeout: const Duration(seconds: 12),
+        connectTimeout: const Duration(seconds: 25),
+        receiveTimeout: const Duration(seconds: 25),
         contentType: 'application/json',
         responseType: ResponseType.json,
       ),
@@ -198,5 +198,34 @@ class ApiClient {
 
   Future<Response> getEmergencyContacts() async {
     return await dio.get('/contacts');
+  }
+
+  Future<Response> createEmergencyContact({
+    required String name,
+    required String phone,
+    required String relationship,
+    String? email,
+  }) async {
+    return await dio.post(
+      '/contacts',
+      data: {
+        'name': name,
+        'phone': phone,
+        'relationship': relationship,
+        if (email != null && email.isNotEmpty) 'email': email,
+        'preferred_channels': ['sms', 'whatsapp'],
+        'priority_order': 1,
+      },
+    );
+  }
+
+  Future<Response> deleteEmergencyContact(String contactId) async {
+    return await dio.delete('/contacts/$contactId');
+  }
+
+  Future<void> preWarmBackend() async {
+    try {
+      await dio.get('/health');
+    } catch (_) {}
   }
 }
