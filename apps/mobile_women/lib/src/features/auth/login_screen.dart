@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_dart/shared_dart.dart';
-import '../../core/api_client.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,22 +14,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  String _activeServerUrl = '';
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadServerUrl();
-    });
-  }
-
-  Future<void> _loadServerUrl() async {
-    final url = await ref.read(apiClientProvider).getEffectiveBaseUrl();
-    if (mounted) {
-      setState(() => _activeServerUrl = url);
-    }
-  }
 
   @override
   void dispose() {
@@ -51,174 +34,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     ref.read(authControllerProvider.notifier).login(identifier, password);
-  }
-
-  void _showServerSettingsModal() {
-    final urlController = TextEditingController(text: _activeServerUrl);
-    String? testResult;
-    bool isTesting = false;
-    bool testSuccess = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogCtx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(dialogCtx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.dns_rounded, color: AppColors.midnightNavy, size: 22),
-                          SizedBox(width: 8),
-                          Text(
-                            'Server Configuration',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.midnightNavy,
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(dialogCtx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Enter your deployed backend API URL (e.g. Render) or your SafeLink website address.',
-                    style: TextStyle(fontSize: 12, color: AppColors.slateNeutral),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: urlController,
-                    keyboardType: TextInputType.url,
-                    decoration: InputDecoration(
-                      labelText: 'Backend API or Website URL',
-                      hintText: 'https://your-api.onrender.com',
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  if (testResult != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: testSuccess ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
-                        border: Border.all(
-                          color: testSuccess ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        testResult!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: testSuccess ? const Color(0xFF065F46) : const Color(0xFF991B1B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isTesting
-                              ? null
-                              : () async {
-                                  setModalState(() {
-                                    isTesting = true;
-                                    testResult = null;
-                                  });
-                                  final apiClient = ref.read(apiClientProvider);
-                                  final res = await apiClient.testConnection(urlController.text);
-                                  setModalState(() {
-                                    isTesting = false;
-                                    if (res['success'] == true) {
-                                      testSuccess = true;
-                                      testResult = '✓ Connected! SafeLink API is operational.';
-                                    } else {
-                                      testSuccess = false;
-                                      testResult = '✗ Cannot connect: ${res['error']}';
-                                    }
-                                  });
-                                },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: isTesting
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text('Test Connection'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final input = urlController.text.trim();
-                            if (input.isNotEmpty) {
-                              final apiClient = ref.read(apiClientProvider);
-                              final applied = await apiClient.resolveAndSetBaseUrl(input);
-                              setState(() => _activeServerUrl = applied);
-                              if (mounted) {
-                                Navigator.pop(dialogCtx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Server URL updated to $applied')),
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.midnightNavy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: const Text('Save & Apply'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   @override
@@ -277,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     color: AppColors.slateNeutral,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
                 // Error message banner
                 if (authState.errorMessage != null) ...[
@@ -374,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
                 // Login Button
                 ElevatedButton(
@@ -398,41 +213,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                 ),
 
-                const SizedBox(height: 20),
-
-                // Server Configuration Tile
-                InkWell(
-                  onTap: _showServerSettingsModal,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.settings_outlined, size: 16, color: AppColors.slateNeutral),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _activeServerUrl.isNotEmpty ? 'Server: $_activeServerUrl' : 'Configure Server URL',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, color: AppColors.slateNeutral),
-                          ),
-                        ),
-                        const Text(
-                          'Change',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 const Text(
                   'Need an account? New registrations must complete identity & liveness verification on our official web portal.',
                   textAlign: TextAlign.center,

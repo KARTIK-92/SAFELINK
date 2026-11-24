@@ -104,9 +104,9 @@ class AuthController extends StateNotifier<AuthState> {
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.connectionError) {
-        msg = 'Cannot connect to server. Please tap Server Settings (⚙️) below to verify your backend API URL.';
+        msg = 'Cannot connect to server. Please check your internet connection.';
       } else if (e.response?.statusCode == 404) {
-        msg = 'API endpoint not found (HTTP 404). Please verify your server URL in Server Settings (⚙️).';
+        msg = 'Authentication service temporarily unavailable. Please try again later.';
       } else if (e.response?.data is Map && e.response?.data['detail'] != null) {
         msg = e.response?.data['detail'].toString() ?? msg;
       }
