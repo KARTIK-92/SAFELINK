@@ -1,7 +1,7 @@
 /// API Constants & Endpoints Configuration
 
 class ApiConstants {
-  static const String defaultBaseUrl = 'http://localhost:8000/api/v1';
+  static const String defaultBaseUrl = 'https://safelink-api-zuiu.onrender.com/api/v1';
   static const String brandName = 'SafeLink';
   static const String emergencyNumber = '112';
 

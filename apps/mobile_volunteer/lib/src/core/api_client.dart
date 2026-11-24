@@ -31,7 +31,7 @@ class ApiClient {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return normalizeUrl(envUrl);
     if (kIsWeb) return 'http://localhost:8000/api/v1';
-    return 'https://safelink-api.onrender.com/api/v1';
+    return 'https://safelink-api-zuiu.onrender.com/api/v1';
   }
 
   Future<String> getEffectiveBaseUrl() async {
