@@ -243,7 +243,7 @@ def build_app(app_name, package_name, output_apk_name):
     local_props.write_text("\n".join(props_lines) + "\n", encoding="utf-8")
     print(f"[OK] Configured local.properties in {local_props}:\n{local_props.read_text(encoding='utf-8')}")
 
-    # Patch build.gradle files for minSdk=21, coreLibraryDesugaring, and debug signing
+    # Patch build.gradle files for minSdk=21, desugaring (volunteer app), and debug signing
     for bg_file in [app_dir / "android" / "app" / "build.gradle", app_dir / "android" / "app" / "build.gradle.kts"]:
         if bg_file.exists():
             is_kts = bg_file.suffix == ".kts"
@@ -251,7 +251,8 @@ def build_app(app_name, package_name, output_apk_name):
             bg_text = re.sub(r"minSdk(Version)?\s*=\s*flutter\.minSdkVersion", "minSdk = 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+[0-9]+", "minSdkVersion 21", bg_text)
-            bg_text = _patch_desugaring(bg_text, is_kts=is_kts)
+            if app_name == "mobile_volunteer":
+                bg_text = _patch_desugaring(bg_text, is_kts=is_kts)
             if "signingConfigs.debug" not in bg_text:
                 if is_kts:
                     bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r'\1\n            signingConfig = signingConfigs.getByName("debug")', bg_text, count=1)
@@ -260,17 +261,19 @@ def build_app(app_name, package_name, output_apk_name):
             bg_file.write_text(bg_text, encoding="utf-8")
             print(f"[OK] Patched minSdk, desugaring, and signingConfig in {bg_file}")
 
-    # 4.5. Align Kotlin Gradle Plugin version to 1.9.24 for modern Android & geolocator compatibility
+    # 4.5. Align AGP (>=7.4.2 for desugar_jdk_libs 2.0.4) & Kotlin Gradle Plugin (1.9.24)
     for sg_file in [app_dir / "android" / "settings.gradle", app_dir / "android" / "settings.gradle.kts"]:
         if sg_file.exists():
             sg_text = sg_file.read_text(encoding="utf-8")
+            sg_text = re.sub(r'id\s*\(?["\']com\.android\.application["\']\)?\s+version\s+["\']7\.[0-3]\.[0-9]+["\']', 'id "com.android.application" version "7.4.2"', sg_text)
             sg_text = re.sub(r'id\s*\(?["\']org\.jetbrains\.kotlin\.android["\']\)?\s+version\s+["\'][0-9.]+["\']', 'id "org.jetbrains.kotlin.android" version "1.9.24"', sg_text)
             sg_file.write_text(sg_text, encoding="utf-8")
-            print(f"[OK] Patched kotlin version in {sg_file}")
+            print(f"[OK] Patched AGP & kotlin version in {sg_file}")
 
     for root_bg in [app_dir / "android" / "build.gradle", app_dir / "android" / "build.gradle.kts"]:
         if root_bg.exists():
             rbg_text = root_bg.read_text(encoding="utf-8")
+            rbg_text = re.sub(r'com\.android\.tools\.build:gradle:7\.[0-3]\.[0-9]+', 'com.android.tools.build:gradle:7.4.2', rbg_text)
             if "ext.kotlin_version" in rbg_text:
                 rbg_text = re.sub(r"ext\.kotlin_version\s*=\s*['\"][0-9.]+['\"]", "ext.kotlin_version = '1.9.24'", rbg_text)
             else:
