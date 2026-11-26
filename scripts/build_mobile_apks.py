@@ -60,7 +60,8 @@ VOLUNTEER_SERVICE_BLOCK = """
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="dataSync"
-            tools:node="merge" />
+            android:exported="true"
+            tools:replace="android:exported,android:foregroundServiceType" />
 """
 
 
@@ -73,7 +74,7 @@ def run_cmd(cmd, cwd=None):
     sys.stdout.flush()
     sys.stderr.flush()
     if res.returncode != 0:
-        print(f"[ERROR] Command '{cmd_str}' failed with exit code {res.returncode}", flush=True)
+        print(f"::error::Command '{cmd_str}' failed with exit code {res.returncode}", flush=True)
         sys.exit(res.returncode)
 
 
