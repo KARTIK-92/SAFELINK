@@ -70,12 +70,28 @@ def run_cmd(cmd, cwd=None):
     print(f"\n[RUNNING] {cmd_str} (in {cwd or '.'})", flush=True)
     sys.stdout.flush()
     sys.stderr.flush()
-    res = subprocess.run(cmd, cwd=cwd, shell=isinstance(cmd, str))
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        shell=isinstance(cmd, str),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        errors="replace",
+    )
+    lines = []
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+        lines.append(line.rstrip("\r\n"))
+    returncode = proc.wait()
     sys.stdout.flush()
     sys.stderr.flush()
-    if res.returncode != 0:
-        print(f"::error::Command '{cmd_str}' failed with exit code {res.returncode}", flush=True)
-        sys.exit(res.returncode)
+    if returncode != 0:
+        tail = [l for l in lines[-45:] if l.strip()]
+        chunk = " | ".join(tail[-25:])
+        print(f"::error::Command '{cmd_str}' failed (exit {returncode}): {chunk[:3500]}", flush=True)
+        sys.exit(returncode)
 
 
 def _patch_desugaring(bg_text: str, is_kts: bool) -> str:
@@ -262,8 +278,9 @@ def build_app(app_name, package_name, output_apk_name):
             root_bg.write_text(rbg_text, encoding="utf-8")
             print(f"[OK] Patched kotlin version in {root_bg}")
 
-    # 5. Get Flutter dependencies
+    # 5. Get Flutter dependencies & validate Dart compilation
     run_cmd(["flutter", "pub", "get"], cwd=app_dir)
+    run_cmd(["flutter", "analyze", "--no-fatal-infos", "--no-fatal-warnings"], cwd=app_dir)
 
     # 6. Build Release APK (lightweight, optimized, signed with debug keystore)
     print(f"\nCompiling Lightweight Release APK for {app_name}...", flush=True)
