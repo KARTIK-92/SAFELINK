@@ -120,8 +120,14 @@ async def list_nearby_incidents(
         select(VolunteerProfile).where(VolunteerProfile.user_id == current_user.id)
     )
     profile = prof_res.scalar_one_or_none()
-    if not profile or not profile.is_available:
-        return []
+    if not profile:
+        profile = VolunteerProfile(user_id=current_user.id, is_available=True)
+        db.add(profile)
+        await db.commit()
+        await db.refresh(profile)
+    elif not profile.is_available:
+        profile.is_available = True
+        await db.commit()
 
     # 1. Fetch alerts for this volunteer for active incidents
     query = (
@@ -354,6 +360,7 @@ async def get_incident_navigation_details(
     return {
         "incident_id": str(incident.id),
         "status": incident.status.value,
+        "response_status": assignment.status.value,
         "victim_display_name": victim_name,
         "latitude": latest_loc.latitude if latest_loc else incident.start_latitude,
         "longitude": latest_loc.longitude if latest_loc else incident.start_longitude,

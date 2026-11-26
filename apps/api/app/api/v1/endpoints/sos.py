@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 
@@ -25,6 +25,7 @@ router = APIRouter(prefix="/sos", tags=["Emergency SOS Engine"])
 @router.post("/start", response_model=SOSStartResponse, status_code=status.HTTP_201_CREATED)
 async def start_emergency(
     payload: SOSStartRequest,
+    request: Request,
     current_user: User = Depends(get_current_woman),
     db: AsyncSession = Depends(get_db)
 ):
@@ -46,6 +47,8 @@ async def start_emergency(
             }
         )
 
+    tracking_base = settings.resolve_tracking_base_url(str(request.base_url))
+
     # 2. Trigger atomic SOS workflow
     incident, raw_token, contacts_count, volunteers_count = await emergency_engine.start_emergency(
         woman=current_user,
@@ -53,7 +56,8 @@ async def start_emergency(
         longitude=payload.longitude,
         accuracy_meters=payload.accuracy_meters,
         address_hint=payload.address_hint,
-        db=db
+        db=db,
+        tracking_base_url=tracking_base
     )
 
     return SOSStartResponse(
@@ -61,7 +65,7 @@ async def start_emergency(
         status=incident.status,
         started_at=incident.started_at,
         tracking_token=raw_token,
-        tracking_url=f"{settings.EMERGENCY_TRACKING_BASE_URL}/{raw_token}",
+        tracking_url=f"{tracking_base}/{raw_token}",
         contacts_notified_count=contacts_count,
         volunteers_notified_count=volunteers_count,
         expires_at=incident.expires_at

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 class ApiClient {
   final StorageService _storage;
   late final Dio dio;
+  VoidCallback? onSessionExpired;
+  Completer<String?>? _refreshCompleter;
 
   static String normalizeUrl(String input) {
     var clean = input.trim();
@@ -68,14 +71,90 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          if (error.response?.statusCode == 401) {
-            // Token expired or invalid
-            await _storage.clearAll();
+          final status = error.response?.statusCode;
+          final path = error.requestOptions.path;
+          final alreadyRetried = error.requestOptions.extra['_retried'] == true;
+
+          if (status == 401 &&
+              !alreadyRetried &&
+              !path.contains(ApiConstants.endpointLogin) &&
+              !path.contains(ApiConstants.endpointRefresh)) {
+            final newToken = await _refreshAccessToken(error.requestOptions.baseUrl);
+            if (newToken != null && newToken.isNotEmpty) {
+              final opts = error.requestOptions;
+              opts.headers['Authorization'] = 'Bearer $newToken';
+              opts.extra['_retried'] = true;
+              try {
+                final retryRes = await dio.fetch(opts);
+                return handler.resolve(retryRes);
+              } on DioException catch (retryErr) {
+                return handler.next(retryErr);
+              }
+            }
           }
           return handler.next(error);
         },
       ),
     );
+  }
+
+  Future<String?> _refreshAccessToken(String baseUrl) async {
+    if (_refreshCompleter != null) {
+      return await _refreshCompleter!.future;
+    }
+    _refreshCompleter = Completer<String?>();
+    try {
+      final refreshToken = await _storage.getRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) {
+        // Legacy session without refresh token -> clear expired access token cleanly
+        await _storage.clearAll();
+        onSessionExpired?.call();
+        _refreshCompleter!.complete(null);
+        return null;
+      }
+
+      final refreshDio = Dio(BaseOptions(
+        baseUrl: baseUrl.isNotEmpty ? baseUrl : defaultBaseUrl,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
+        contentType: 'application/json',
+      ));
+
+      final res = await refreshDio.post(
+        ApiConstants.endpointRefresh,
+        data: {'refresh_token': refreshToken},
+      );
+
+      final data = res.data as Map<String, dynamic>;
+      final newAccess = data['access_token'] as String?;
+      final newRefresh = data['refresh_token'] as String?;
+
+      if (newAccess != null && newAccess.isNotEmpty) {
+        await _storage.setAccessToken(newAccess);
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          await _storage.setRefreshToken(newRefresh);
+        }
+        _refreshCompleter!.complete(newAccess);
+        return newAccess;
+      }
+
+      _refreshCompleter!.complete(null);
+      return null;
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      // Clear local session ONLY when backend explicitly rejects refresh token (401/403)
+      if (code == 401 || code == 403) {
+        await _storage.clearAll();
+        onSessionExpired?.call();
+      }
+      _refreshCompleter!.complete(null);
+      return null;
+    } catch (_) {
+      _refreshCompleter!.complete(null);
+      return null;
+    } finally {
+      _refreshCompleter = null;
+    }
   }
 
   Future<String> resolveAndSetBaseUrl(String input) async {

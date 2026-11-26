@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     # Cryptographic & Auth
     SECRET_KEY: str = "temporary-dev-secret-key-change-in-production-safelink-2026-xyz"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     PASSWORD_MIN_LENGTH: int = 8
 
     # Eligibility & Emergency Constants
@@ -103,6 +103,27 @@ class Settings(BaseSettings):
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]
+
+    def resolve_tracking_base_url(self, request_base_url: Optional[str] = None) -> str:
+        """Resolve public HTTPS live-tracking base URL, never returning localhost when a public host exists."""
+        def _is_local(url: Optional[str]) -> bool:
+            if not url:
+                return True
+            lower = url.lower()
+            return "localhost" in lower or "127.0.0.1" in lower or "0.0.0.0" in lower
+
+        if not _is_local(self.EMERGENCY_TRACKING_BASE_URL):
+            return self.EMERGENCY_TRACKING_BASE_URL.rstrip("/")
+        if not _is_local(self.FRONTEND_URL):
+            return f"{self.FRONTEND_URL.rstrip('/')}/t"
+        if not _is_local(self.API_BASE_URL):
+            return f"{self.API_BASE_URL.rstrip('/')}/t"
+        if request_base_url and not _is_local(request_base_url):
+            clean = request_base_url.rstrip("/")
+            if clean.startswith("http://") and "onrender.com" in clean:
+                clean = "https://" + clean[len("http://"):]
+            return f"{clean}/t"
+        return "https://safelink-api-zuiu.onrender.com/t"
 
 
 settings = Settings()

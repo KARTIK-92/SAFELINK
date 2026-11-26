@@ -2,7 +2,8 @@
 """
 SafeLink Mobile APK Builder Script
 Automates the generation of official Android scaffolding, permissions injection,
-minSdkVersion alignment, and Gradle compilation for both SafeLink mobile apps.
+background service manifest merging, core library desugaring, minSdkVersion alignment,
+and Gradle compilation for both SafeLink mobile apps.
 """
 
 import os
@@ -22,8 +23,44 @@ PERMISSIONS_BLOCK = """
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.CALL_PHONE"/>
+
+    <!-- Android 11+ package visibility for Google Maps navigation, web links, and 112 dialer -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
+"""
+
+VOLUNTEER_SERVICE_BLOCK = """
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 """
 
 
@@ -38,6 +75,62 @@ def run_cmd(cmd, cwd=None):
     if res.returncode != 0:
         print(f"[ERROR] Command '{cmd_str}' failed with exit code {res.returncode}", flush=True)
         sys.exit(res.returncode)
+
+
+def _patch_desugaring(bg_text: str, is_kts: bool) -> str:
+    if is_kts:
+        if "isCoreLibraryDesugaringEnabled" not in bg_text:
+            if "compileOptions" in bg_text:
+                bg_text = re.sub(
+                    r"(compileOptions\s*\{)",
+                    r"\1\n        isCoreLibraryDesugaringEnabled = true",
+                    bg_text,
+                    count=1,
+                )
+            else:
+                bg_text = re.sub(
+                    r"(android\s*\{)",
+                    r"\1\n    compileOptions {\n        isCoreLibraryDesugaringEnabled = true\n        sourceCompatibility = JavaVersion.VERSION_1_8\n        targetCompatibility = JavaVersion.VERSION_1_8\n    }",
+                    bg_text,
+                    count=1,
+                )
+        if "desugar_jdk_libs" not in bg_text:
+            if re.search(r"dependencies\s*\{", bg_text):
+                bg_text = re.sub(
+                    r"(dependencies\s*\{)",
+                    r'\1\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")',
+                    bg_text,
+                    count=1,
+                )
+            else:
+                bg_text += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")\n}\n'
+    else:
+        if "coreLibraryDesugaringEnabled" not in bg_text:
+            if "compileOptions" in bg_text:
+                bg_text = re.sub(
+                    r"(compileOptions\s*\{)",
+                    r"\1\n        coreLibraryDesugaringEnabled true",
+                    bg_text,
+                    count=1,
+                )
+            else:
+                bg_text = re.sub(
+                    r"(android\s*\{)",
+                    r"\1\n    compileOptions {\n        coreLibraryDesugaringEnabled true\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }",
+                    bg_text,
+                    count=1,
+                )
+        if "desugar_jdk_libs" not in bg_text:
+            if re.search(r"dependencies\s*\{", bg_text):
+                bg_text = re.sub(
+                    r"(dependencies\s*\{)",
+                    r"\1\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'",
+                    bg_text,
+                    count=1,
+                )
+            else:
+                bg_text += "\n\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}\n"
+    return bg_text
 
 
 def build_app(app_name, package_name, output_apk_name):
@@ -64,10 +157,17 @@ def build_app(app_name, package_name, output_apk_name):
         pubspec_path.write_text(pubspec_content, encoding="utf-8")
         print(f"[OK] Preserved original pubspec.yaml for {app_name}")
 
-    # 3. Inject mission-critical permissions into generated AndroidManifest.xml
+    # 3. Inject mission-critical permissions, <queries>, tools namespace & background service into AndroidManifest.xml
     manifest_path = app_dir / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     if manifest_path.exists():
         manifest_text = manifest_path.read_text(encoding="utf-8")
+        if "xmlns:tools" not in manifest_text:
+            manifest_text = re.sub(
+                r"<manifest\b",
+                '<manifest xmlns:tools="http://schemas.android.com/tools"',
+                manifest_text,
+                count=1,
+            )
         if "ACCESS_FINE_LOCATION" not in manifest_text:
             manifest_text = re.sub(
                 r"(<manifest[^>]*>)",
@@ -75,8 +175,37 @@ def build_app(app_name, package_name, output_apk_name):
                 manifest_text,
                 count=1,
             )
-            manifest_path.write_text(manifest_text, encoding="utf-8")
-            print(f"[OK] Injected emergency permissions into {manifest_path}")
+        if "android:allowBackup" in manifest_text:
+            manifest_text = re.sub(
+                r'android:allowBackup\s*=\s*"[^"]*"',
+                'android:allowBackup="false"',
+                manifest_text,
+            )
+        else:
+            manifest_text = manifest_text.replace(
+                "<application",
+                '<application\n        android:allowBackup="false"',
+                1,
+            )
+        if app_name == "mobile_volunteer" and "id.flutter.flutter_background_service.BackgroundService" not in manifest_text:
+            manifest_text = manifest_text.replace(
+                "</application>",
+                VOLUNTEER_SERVICE_BLOCK + "\n    </application>",
+                1,
+            )
+        manifest_path.write_text(manifest_text, encoding="utf-8")
+        print(f"[OK] Patched manifest permissions, queries & services in {manifest_path}")
+
+    # Preserve notification/launcher icon resources during R8 shrinking
+    keep_dir = app_dir / "android" / "app" / "src" / "main" / "res" / "raw"
+    keep_dir.mkdir(parents=True, exist_ok=True)
+    keep_file = keep_dir / "keep.xml"
+    keep_file.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<resources xmlns:tools="http://schemas.android.com/tools"\n'
+        '    tools:keep="@mipmap/ic_launcher,@drawable/*" />\n',
+        encoding="utf-8",
+    )
 
     # 4. Configure local.properties with sdk.dir and flutter.minSdkVersion
     android_sdk = (
@@ -97,21 +226,22 @@ def build_app(app_name, package_name, output_apk_name):
     local_props.write_text("\n".join(props_lines) + "\n", encoding="utf-8")
     print(f"[OK] Configured local.properties in {local_props}:\n{local_props.read_text(encoding='utf-8')}")
 
-    # Also patch build.gradle files if minSdk is explicitly referenced
+    # Patch build.gradle files for minSdk=21, coreLibraryDesugaring, and debug signing
     for bg_file in [app_dir / "android" / "app" / "build.gradle", app_dir / "android" / "app" / "build.gradle.kts"]:
         if bg_file.exists():
+            is_kts = bg_file.suffix == ".kts"
             bg_text = bg_file.read_text(encoding="utf-8")
             bg_text = re.sub(r"minSdk(Version)?\s*=\s*flutter\.minSdkVersion", "minSdk = 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 21", bg_text)
             bg_text = re.sub(r"minSdkVersion\s+[0-9]+", "minSdkVersion 21", bg_text)
-            # Guarantee release build uses debug signing config so it is universally signed and installable
+            bg_text = _patch_desugaring(bg_text, is_kts=is_kts)
             if "signingConfigs.debug" not in bg_text:
-                if bg_file.suffix == ".kts":
-                    bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r"\1\n            signingConfig = signingConfigs.getByName(\"debug\")", bg_text, count=1)
+                if is_kts:
+                    bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r'\1\n            signingConfig = signingConfigs.getByName("debug")', bg_text, count=1)
                 else:
                     bg_text = re.sub(r"(buildTypes\s*\{[\s\S]*?release\s*\{)", r"\1\n            signingConfig signingConfigs.debug", bg_text, count=1)
             bg_file.write_text(bg_text, encoding="utf-8")
-            print(f"[OK] Patched minSdk and signingConfig in {bg_file}")
+            print(f"[OK] Patched minSdk, desugaring, and signingConfig in {bg_file}")
 
     # 4.5. Align Kotlin Gradle Plugin version to 1.9.24 for modern Android & geolocator compatibility
     for sg_file in [app_dir / "android" / "settings.gradle", app_dir / "android" / "settings.gradle.kts"]:

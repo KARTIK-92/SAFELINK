@@ -3,35 +3,16 @@ import 'package:mobile_volunteer/src/features/dashboard/volunteer_controller.dar
 
 void main() {
   group('VolunteerState Unit Tests', () {
-    test('Default VolunteerState is offline with zero candidate incidents', () {
+    test('Default VolunteerState is always available with zero candidate incidents', () {
       const state = VolunteerState();
-      expect(state.isAvailable, false);
+      expect(state.isAvailable, true);
       expect(state.isLoading, false);
       expect(state.profile, isNull);
       expect(state.candidateIncidents, isEmpty);
       expect(state.activeIncident, isNull);
     });
 
-    test('VolunteerState copyWith switches availability and stores candidate alert', () {
-      const state = VolunteerState();
-      final updated = state.copyWith(
-        isAvailable: true,
-        candidateIncidents: [
-          {
-            'incident_id': 'inc-999',
-            'approximate_distance_meters': 320,
-            'address_hint': 'Near MG Road Station',
-          }
-        ],
-      );
-
-      expect(updated.isAvailable, true);
-      expect(updated.candidateIncidents.length, 1);
-      expect(updated.candidateIncidents.first['incident_id'], 'inc-999');
-      expect(updated.candidateIncidents.first['approximate_distance_meters'], 320);
-    });
-
-    test('VolunteerState active incident holds unlocked coordinates', () {
+    test('VolunteerState copyWith stores candidate alert and preserves active incident', () {
       const state = VolunteerState();
       final withActive = state.copyWith(
         activeIncident: {
@@ -43,10 +24,24 @@ void main() {
         },
       );
 
-      expect(withActive.activeIncident, isNotNull);
-      expect(withActive.activeIncident!['victim_display_name'], 'Priya S.');
-      expect(withActive.activeIncident!['latitude'], 12.9716);
-      expect(withActive.activeIncident!['response_status'], 'accepted');
+      // Subsequent copyWith updating candidateIncidents must NOT wipe activeIncident!
+      final updatedCandidates = withActive.copyWith(
+        candidateIncidents: [
+          {
+            'incident_id': 'inc-1000',
+            'approximate_distance_meters': 320,
+            'address_hint': 'Near MG Road Station',
+          }
+        ],
+      );
+
+      expect(updatedCandidates.activeIncident, isNotNull);
+      expect(updatedCandidates.activeIncident!['incident_id'], 'inc-999');
+      expect(updatedCandidates.candidateIncidents.length, 1);
+
+      // Explicit clearActiveIncident clears it
+      final cleared = updatedCandidates.copyWith(clearActiveIncident: true);
+      expect(cleared.activeIncident, isNull);
     });
   });
 }

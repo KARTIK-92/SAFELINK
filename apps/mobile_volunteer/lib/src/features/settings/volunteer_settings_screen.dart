@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_dart/shared_dart.dart';
 import '../auth/auth_controller.dart';
-import '../dashboard/volunteer_controller.dart';
 
 class VolunteerSettingsScreen extends ConsumerWidget {
   const VolunteerSettingsScreen({super.key});
@@ -140,7 +139,6 @@ class VolunteerSettingsScreen extends ConsumerWidget {
               // Sign Out Button
               OutlinedButton.icon(
                 onPressed: () async {
-                  ref.read(volunteerControllerProvider.notifier).toggleAvailability(false);
                   await ref.read(authControllerProvider.notifier).logout();
                   if (context.mounted) {
                     context.go('/login');

@@ -86,8 +86,35 @@ class EmergencyController extends StateNotifier<EmergencyState> {
         _location = location,
         _storage = storage,
         super(const EmergencyState()) {
+    _api.preWarmBackend();
     checkActiveEmergency();
     _warmUpLocation();
+  }
+
+  String _normalizeTrackingUrl(String? rawUrl, String? token) {
+    final apiRoot = _api.dio.options.baseUrl.replaceAll(RegExp(r'/api/v1/?$'), '');
+    final publicRoot = (apiRoot.contains('localhost') || apiRoot.contains('127.0.0.1'))
+        ? 'https://safelink-api-zuiu.onrender.com'
+        : apiRoot;
+
+    if (rawUrl != null && rawUrl.trim().isNotEmpty) {
+      final clean = rawUrl.trim();
+      if (clean.contains('localhost') || clean.contains('127.0.0.1')) {
+        final uri = Uri.tryParse(clean);
+        if (uri != null && uri.path.isNotEmpty) {
+          return '$publicRoot${uri.path}';
+        }
+        if (token != null && token.isNotEmpty) {
+          return '$publicRoot/t/$token';
+        }
+      }
+      return clean;
+    }
+
+    if (token != null && token.isNotEmpty) {
+      return '$publicRoot/t/$token';
+    }
+    return '';
   }
 
   void _warmUpLocation() {
@@ -105,17 +132,32 @@ class EmergencyController extends StateNotifier<EmergencyState> {
   /// Check if user has an existing active emergency on server
   Future<void> checkActiveEmergency() async {
     try {
+      final token = await _storage.getAccessToken();
+      if (token == null || token.isEmpty) return;
+
       final res = await _api.getActiveSOS();
       final data = res.data as Map<String, dynamic>;
       if (data['active'] == true) {
         final id = data['incident_id'] as String;
+        final storedUrl = await _storage.getActiveTrackingUrl();
+        final serverUrl = data['tracking_url'] as String?;
+        final rawToken = data['tracking_token'] as String?;
+        final resolvedUrl = _normalizeTrackingUrl(serverUrl ?? storedUrl, rawToken);
+        if (resolvedUrl.isNotEmpty) {
+          await _storage.setActiveTrackingUrl(resolvedUrl);
+        }
+
         state = state.copyWith(
           isActive: true,
           incidentId: id,
+          trackingUrl: resolvedUrl.isNotEmpty ? resolvedUrl : state.trackingUrl,
           startedAt: DateTime.tryParse(data['started_at'] as String? ?? ''),
         );
         _startLocationStreaming(id);
         _startStatusPolling(id);
+      } else {
+        await _storage.setActiveIncidentId(null);
+        await _storage.setActiveTrackingUrl(null);
       }
     } catch (_) {
       // Ignore network errors on initial passive check
@@ -159,12 +201,15 @@ class EmergencyController extends StateNotifier<EmergencyState> {
 
       final data = res.data as Map<String, dynamic>;
       final incidentId = data['incident_id'] as String;
-      final trackingToken = data['tracking_token'] as String;
-      final trackingUrl = data['tracking_url'] as String;
+      final trackingToken = data['tracking_token'] as String?;
+      final trackingUrl = _normalizeTrackingUrl(data['tracking_url'] as String?, trackingToken);
       final contactsCount = data['contacts_notified_count'] as int? ?? 0;
       final volunteersCount = data['volunteers_notified_count'] as int? ?? 0;
 
       await _storage.setActiveIncidentId(incidentId);
+      if (trackingUrl.isNotEmpty) {
+        await _storage.setActiveTrackingUrl(trackingUrl);
+      }
 
       state = state.copyWith(
         isActive: true,
@@ -259,6 +304,7 @@ class EmergencyController extends StateNotifier<EmergencyState> {
     } catch (_) {}
 
     await _storage.setActiveIncidentId(null);
+    await _storage.setActiveTrackingUrl(null);
 
     state = const EmergencyState(
       isActive: false,
@@ -270,8 +316,15 @@ class EmergencyController extends StateNotifier<EmergencyState> {
   /// Direct Emergency Phone Call 112
   Future<void> call112() async {
     final uri = Uri.parse('tel:112');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(uri);
+      } catch (_) {}
     }
   }
 

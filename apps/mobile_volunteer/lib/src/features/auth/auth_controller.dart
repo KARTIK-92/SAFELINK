@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
+import '../../core/background_service.dart';
 import '../../core/storage_service.dart';
 
 class AuthState {
@@ -46,6 +47,12 @@ class AuthController extends StateNotifier<AuthState> {
       : _storage = storage,
         _api = api,
         super(const AuthState(isLoading: true)) {
+    _api.onSessionExpired = () {
+      if (mounted) {
+        VolunteerBackgroundService.stop();
+        state = const AuthState(isAuthenticated: false, isLoading: false);
+      }
+    };
     checkAuthStatus();
   }
 
@@ -53,13 +60,16 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final token = await _storage.getAccessToken();
-      if (token != null && token.isNotEmpty) {
+      final refreshToken = await _storage.getRefreshToken();
+      if ((token != null && token.isNotEmpty) ||
+          (refreshToken != null && refreshToken.isNotEmpty)) {
         final userData = await _storage.getUserData();
         state = state.copyWith(
           isAuthenticated: true,
           isLoading: false,
           user: userData,
         );
+        VolunteerBackgroundService.startIfAuthenticated();
       } else {
         state = state.copyWith(isAuthenticated: false, isLoading: false);
       }
@@ -75,6 +85,7 @@ class AuthController extends StateNotifier<AuthState> {
       final data = response.data as Map<String, dynamic>;
 
       final token = data['access_token'] as String;
+      final refreshToken = data['refresh_token'] as String?;
       final userMap = data['user'] as Map<String, dynamic>?;
 
       // Restrict volunteer mobile app to registered volunteer accounts
@@ -88,6 +99,9 @@ class AuthController extends StateNotifier<AuthState> {
       }
 
       await _storage.setAccessToken(token);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _storage.setRefreshToken(refreshToken);
+      }
       if (userMap != null) {
         await _storage.saveUserData(userMap);
       }
@@ -97,6 +111,8 @@ class AuthController extends StateNotifier<AuthState> {
         isLoading: false,
         user: userMap,
       );
+
+      await VolunteerBackgroundService.startIfAuthenticated();
       return true;
     } on DioException catch (e) {
       String msg = 'Login failed. Please verify your volunteer credentials.';
@@ -119,6 +135,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await VolunteerBackgroundService.stop();
     await _storage.clearAll();
     state = const AuthState(isAuthenticated: false, isLoading: false);
   }

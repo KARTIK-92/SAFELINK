@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_dart/shared_dart.dart';
@@ -24,17 +25,22 @@ class ActiveResponseScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.check_circle_outline, size: 60, color: Colors.green),
+                const Icon(Icons.check_circle_outline,
+                    size: 60, color: Colors.green),
                 const SizedBox(height: 16),
                 const Text(
                   'No Active Emergency Assignment',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.midnightNavy),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'The incident may have concluded or the member reached safety.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.slateNeutral, fontSize: 13),
+                  style:
+                      TextStyle(color: AppColors.slateNeutral, fontSize: 13),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -48,10 +54,15 @@ class ActiveResponseScreen extends ConsumerWidget {
       );
     }
 
-    final victimName = active['victim_display_name'] ?? 'SafeLink Member';
-    final address = active['address_snapshot'] ?? 'Near MG Road Metro';
-    final lat = (active['latitude'] as num?)?.toDouble() ?? 12.9716;
-    final lon = (active['longitude'] as num?)?.toDouble() ?? 77.5946;
+    final victimName =
+        (active['victim_display_name'] as String?)?.isNotEmpty == true
+            ? active['victim_display_name'] as String
+            : 'SafeLink Member';
+    final address = (active['address_snapshot'] as String?)?.isNotEmpty == true
+        ? active['address_snapshot'] as String
+        : 'Emergency Location';
+    final lat = (active['latitude'] as num?)?.toDouble() ?? 0.0;
+    final lon = (active['longitude'] as num?)?.toDouble() ?? 0.0;
     final currentStatus = active['response_status'] ?? 'accepted';
 
     return Scaffold(
@@ -83,7 +94,8 @@ class ActiveResponseScreen extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.shield_outlined, color: Colors.white, size: 28),
+                    const Icon(Icons.shield_outlined,
+                        color: Colors.white, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -100,7 +112,9 @@ class ActiveResponseScreen extends ConsumerWidget {
                           ),
                           Text(
                             'Proceed with care. Human presence makes a critical difference.',
-                            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11),
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 11),
                           ),
                         ],
                       ),
@@ -125,10 +139,11 @@ class ActiveResponseScreen extends ConsumerWidget {
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: AppColors.emergencyRed.withOpacity(0.12),
+                          backgroundColor:
+                              AppColors.emergencyRed.withOpacity(0.12),
                           radius: 20,
                           child: Text(
-                            victimName[0],
+                            victimName[0].toUpperCase(),
                             style: const TextStyle(
                               color: AppColors.emergencyRed,
                               fontWeight: FontWeight.bold,
@@ -151,7 +166,9 @@ class ActiveResponseScreen extends ConsumerWidget {
                               ),
                               const Text(
                                 'Member requested immediate nearby assistance',
-                                style: TextStyle(fontSize: 12, color: AppColors.slateNeutral),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.slateNeutral),
                               ),
                             ],
                           ),
@@ -161,7 +178,8 @@ class ActiveResponseScreen extends ConsumerWidget {
                     const Divider(height: 24),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: AppColors.brandTeal, size: 20),
+                        const Icon(Icons.location_on,
+                            color: AppColors.brandTeal, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -176,24 +194,58 @@ class ActiveResponseScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'Target GPS: ${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slateNeutral),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Live GPS: ${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.slateNeutral),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: '$lat,$lon'));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('GPS coordinates copied!')),
+                            );
+                          },
+                          icon: const Icon(Icons.copy, size: 14),
+                          label: const Text('Copy',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     // Launch Google Maps Button
                     ElevatedButton.icon(
-                      onPressed: () => volunteerNotifier.openGoogleMapsNavigation(lat, lon),
+                      onPressed: () async {
+                        final launched = await volunteerNotifier
+                            .openGoogleMapsNavigation(lat, lon);
+                        if (!launched && context.mounted) {
+                          Clipboard.setData(ClipboardData(text: '$lat,$lon'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Could not launch Maps app. Coordinates ($lat, $lon) copied to clipboard.'),
+                            ),
+                          );
+                        }
+                      },
                       icon: const Icon(Icons.directions, color: Colors.white),
                       label: const Text(
                         'NAVIGATE IN GOOGLE MAPS',
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.brandTeal,
                         minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ],
@@ -217,8 +269,10 @@ class ActiveResponseScreen extends ConsumerWidget {
                 title: '1. I Am On The Way',
                 statusKey: 'on_the_way',
                 isActive: currentStatus == 'on_the_way',
-                isCompleted: currentStatus == 'reached_location' || currentStatus == 'assistance_completed',
-                onTap: () => volunteerNotifier.updateResponseStatus('on_the_way'),
+                isCompleted: currentStatus == 'reached_location' ||
+                    currentStatus == 'assistance_completed',
+                onTap: () =>
+                    volunteerNotifier.updateResponseStatus('on_the_way'),
               ),
               const SizedBox(height: 8),
 
@@ -227,7 +281,8 @@ class ActiveResponseScreen extends ConsumerWidget {
                 statusKey: 'reached_location',
                 isActive: currentStatus == 'reached_location',
                 isCompleted: currentStatus == 'assistance_completed',
-                onTap: () => volunteerNotifier.updateResponseStatus('reached_location'),
+                onTap: () =>
+                    volunteerNotifier.updateResponseStatus('reached_location'),
               ),
               const SizedBox(height: 8),
 
@@ -238,7 +293,8 @@ class ActiveResponseScreen extends ConsumerWidget {
                 isCompleted: false,
                 isFinal: true,
                 onTap: () async {
-                  final ok = await volunteerNotifier.updateResponseStatus('assistance_completed');
+                  final ok = await volunteerNotifier
+                      .updateResponseStatus('assistance_completed');
                   if (ok && context.mounted) {
                     context.go('/');
                   }
@@ -253,12 +309,16 @@ class ActiveResponseScreen extends ConsumerWidget {
                 icon: const Icon(Icons.phone, color: AppColors.emergencyRed),
                 label: const Text(
                   'CALL 112 (OFFICIAL POLICE HELPLINE)',
-                  style: TextStyle(color: AppColors.emergencyRed, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: AppColors.emergencyRed,
+                      fontWeight: FontWeight.bold),
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  side: const BorderSide(color: AppColors.emergencyRed, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(
+                      color: AppColors.emergencyRed, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   backgroundColor: Colors.white,
                 ),
               ),
@@ -315,7 +375,8 @@ class ActiveResponseScreen extends ConsumerWidget {
                 title,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: isActive || isFinal ? FontWeight.bold : FontWeight.w600,
+                  fontWeight:
+                      isActive || isFinal ? FontWeight.bold : FontWeight.w600,
                   color: text,
                 ),
               ),

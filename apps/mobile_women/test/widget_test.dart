@@ -19,7 +19,7 @@ void main() {
     );
 
     expect(find.text('SOS'), findsOneWidget);
-    expect(find.text('HOLD 1.5s'), findsOneWidget);
+    expect(find.text('TAP OR HOLD'), findsOneWidget);
     expect(triggered, false);
   });
 }

@@ -42,7 +42,8 @@ class EmergencyEngine:
         longitude: float,
         accuracy_meters: float,
         address_hint: Optional[str],
-        db: AsyncSession
+        db: AsyncSession,
+        tracking_base_url: Optional[str] = None
     ) -> Tuple[EmergencyIncident, str, int, int]:
         """Atomically initiate an emergency incident:
         1. Generates 256-bit cryptographic tracking token.
@@ -105,12 +106,8 @@ class EmergencyEngine:
         contacts = contacts_res.scalars().all()
 
         notifier = get_notification_provider()
-        base_tracking = settings.EMERGENCY_TRACKING_BASE_URL.rstrip('/')
-        if "localhost" in base_tracking and settings.FRONTEND_URL and "localhost" not in settings.FRONTEND_URL:
-            base_tracking = f"{settings.FRONTEND_URL.rstrip('/')}/t"
-        elif "localhost" in base_tracking:
-            base_tracking = "https://safelink-api-zuiu.onrender.com/t"
-        tracking_url = f"{base_tracking}/{raw_token}"
+        base_tracking = tracking_base_url or settings.resolve_tracking_base_url()
+        tracking_url = f"{base_tracking.rstrip('/')}/{raw_token}"
         woman_name = woman.profile.full_legal_name if woman.profile else "SafeLink Member"
         time_str = now.strftime("%I:%M %p UTC")
 
@@ -187,13 +184,12 @@ class EmergencyEngine:
         """Find eligible nearby volunteers and dispatch privacy-preserving alerts."""
         stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=settings.VOLUNTEER_LOCATION_STALE_MINUTES)
 
-        # Query all active, available volunteers (allow pending verification for rapid onboarding / test)
+        # Query all active volunteers (always-available responder model)
         vol_query = select(VolunteerProfile).join(User).where(
             and_(
                 User.role == UserRole.VOLUNTEER,
                 User.status != AccountStatus.SUSPENDED,
-                User.is_active == True,
-                VolunteerProfile.is_available == True
+                User.is_active == True
             )
         )
         vol_res = await db.execute(vol_query)
@@ -285,13 +281,17 @@ class EmergencyEngine:
         db: AsyncSession
     ) -> IncidentVolunteer:
         """Assign volunteer to incident with atomic concurrency check and responder limit."""
-        # 1. Check volunteer profile
+        # 1. Check or auto-enable volunteer profile (always available)
         vol_res = await db.execute(
             select(VolunteerProfile).where(VolunteerProfile.user_id == volunteer_user.id)
         )
         vol_profile = vol_res.scalar_one_or_none()
-        if not vol_profile or not vol_profile.is_available:
-            raise ValueError("Volunteer is not currently available to respond.")
+        if not vol_profile:
+            vol_profile = VolunteerProfile(user_id=volunteer_user.id, is_available=True)
+            db.add(vol_profile)
+            await db.flush()
+        elif not vol_profile.is_available:
+            vol_profile.is_available = True
 
         # 2. Check incident is still active
         inc_res = await db.execute(

@@ -1,33 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_dart/shared_dart.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
 import 'features/emergency/emergency_screen.dart';
 import 'features/settings/settings_screen.dart';
 
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void trigger() => notifyListeners();
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authControllerProvider);
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.listen<AuthState>(authControllerProvider, (_, __) {
+    refreshNotifier.trigger();
+  });
+  ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
     redirect: (BuildContext context, GoRouterState state) {
-      if (authState.isLoading) return null;
+      final authState = ref.read(authControllerProvider);
+      final loc = state.matchedLocation;
 
-      final isLoggingIn = state.matchedLocation == '/login';
-      final isAuthenticated = authState.isAuthenticated;
-
-      if (!isAuthenticated && !isLoggingIn) {
-        return '/login';
+      if (authState.isLoading) {
+        return loc == '/splash' ? null : '/splash';
       }
 
-      if (isAuthenticated && isLoggingIn) {
+      final isAuthenticated = authState.isAuthenticated;
+
+      if (!isAuthenticated) {
+        return loc == '/login' ? null : '/login';
+      }
+
+      if (loc == '/login' || loc == '/splash') {
         return '/';
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const _SessionBootScreen(),
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) => const EmergencyScreen(),
@@ -43,3 +61,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _SessionBootScreen extends StatelessWidget {
+  const _SessionBootScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: AppColors.canvasCream,
+      body: Center(
+        child: CircularProgressIndicator(color: AppColors.midnightNavy),
+      ),
+    );
+  }
+}

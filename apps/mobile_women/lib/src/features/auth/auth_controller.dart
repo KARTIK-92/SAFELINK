@@ -46,6 +46,11 @@ class AuthController extends StateNotifier<AuthState> {
       : _storage = storage,
         _api = api,
         super(const AuthState(isLoading: true)) {
+    _api.onSessionExpired = () {
+      if (mounted) {
+        state = const AuthState(isAuthenticated: false, isLoading: false);
+      }
+    };
     checkAuthStatus();
   }
 
@@ -53,7 +58,9 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final token = await _storage.getAccessToken();
-      if (token != null && token.isNotEmpty) {
+      final refreshToken = await _storage.getRefreshToken();
+      if ((token != null && token.isNotEmpty) ||
+          (refreshToken != null && refreshToken.isNotEmpty)) {
         final userData = await _storage.getUserData();
         state = state.copyWith(
           isAuthenticated: true,
@@ -75,6 +82,7 @@ class AuthController extends StateNotifier<AuthState> {
       final data = response.data as Map<String, dynamic>;
 
       final token = data['access_token'] as String;
+      final refreshToken = data['refresh_token'] as String?;
       final userMap = data['user'] as Map<String, dynamic>?;
 
       // Restrict women's mobile app to registered women accounts
@@ -88,6 +96,9 @@ class AuthController extends StateNotifier<AuthState> {
       }
 
       await _storage.setAccessToken(token);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _storage.setRefreshToken(refreshToken);
+      }
       if (userMap != null) {
         await _storage.saveUserData(userMap);
       }
